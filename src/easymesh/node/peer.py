@@ -23,24 +23,26 @@ class PeerWriterBuilder:
         self.host = host or get_hostname()
 
     async def build(self, conn_specs: Iterable[ConnectionSpec]) -> Writer:
-        reader, writer = None, None
+        reader_writer = None
         for conn_spec in conn_specs:
             try:
-                reader, writer = await self._get_connection(conn_spec)
+                reader_writer = await self._get_connection(conn_spec)
             except ConnectionError as e:
                 print(f'Error connecting to {conn_spec}: {e}')
                 continue
-            else:
+
+            if reader_writer is not None:
                 break
 
-        if not writer:
+        if reader_writer is None:
             raise ConnectionError('Could not connect to any connection spec')
 
+        reader, writer = reader_writer
         await self.authenticator.authenticate(reader, writer)
 
         return writer
 
-    async def _get_connection(self, conn_spec: ConnectionSpec) -> tuple[Reader, Writer]:
+    async def _get_connection(self, conn_spec: ConnectionSpec) -> tuple[Reader, Writer] | None:
         if isinstance(conn_spec, IpConnectionSpec):
             return await open_connection(
                 host=conn_spec.host,
@@ -48,10 +50,7 @@ class PeerWriterBuilder:
             )
         elif isinstance(conn_spec, UnixConnectionSpec):
             if conn_spec.host != self.host:
-                raise ConnectionError(
-                    f'Unix connection host={conn_spec.host} '
-                    f'does not match local host={self.host}'
-                )
+                return None
 
             return await open_unix_connection(path=conn_spec.path)
         else:
