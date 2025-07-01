@@ -118,13 +118,23 @@ class LockableWriter(Writer):
     def lock(self) -> Lock:
         return self._lock
 
+    async def __aenter__(self) -> 'LockableWriter':
+        await self.lock.acquire()
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
+        self.lock.release()
+
     def write(self, data: bytes) -> None:
+        assert self.lock.locked()
         self.writer.write(data)
 
     async def drain(self) -> None:
+        assert self.lock.locked()
         await self.writer.drain()
 
     def close(self) -> None:
+        assert self.lock.locked()
         self.writer.close()
 
     async def wait_closed(self) -> None:
