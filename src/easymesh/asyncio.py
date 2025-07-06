@@ -94,6 +94,9 @@ class Reader(Protocol):
     async def readexactly(self, n: int) -> bytes:
         ...
 
+    async def readuntil(self, separator: bytes) -> bytes:
+        ...
+
 
 class Writer(Protocol):
     def write(self, data: bytes) -> None:

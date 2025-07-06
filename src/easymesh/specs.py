@@ -4,7 +4,7 @@ from typing import Union
 from uuid import UUID, uuid4
 
 from easymesh.network import get_hostname
-from easymesh.types import Host, Port, Topic
+from easymesh.types import Host, Port, Service, Topic
 
 
 @dataclass
@@ -41,6 +41,7 @@ class MeshNodeSpec:
     id: NodeId
     connections: list[ConnectionSpec]
     listening_to_topics: set[Topic]
+    services: set[Service]
 
 
 @dataclass

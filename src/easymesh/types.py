@@ -1,6 +1,6 @@
 from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass
-from typing import Any, Optional, Union
+from typing import Any, NamedTuple, Protocol, Union
 
 Host = str
 ServerHost = Union[Host, Sequence[Host], None]
@@ -17,16 +17,36 @@ class Endpoint:
 
 
 Topic = str
+Service = str
 Data = Any
 TopicCallback = Callable[[Topic, Data], None]
 
 
-@dataclass(slots=True)
-class Message:
+class Message(NamedTuple):
     topic: Topic
-    data: Optional[Data]
+    data: Data | None
 
 
 ServiceName = str
 ServiceResponse = Any
 ServiceCallback = Callable[[Topic, Data], Awaitable[ServiceResponse]]
+RequestId = int
+
+
+class ServiceRequest(NamedTuple):
+    id: RequestId
+    service: ServiceName
+    data: Data | None
+
+
+class ServiceResponse(NamedTuple):
+    id: RequestId
+    data: Data | None = None
+    error: str | None = None
+
+
+class Buffer(Protocol):
+    """Not available in std lib until Python 3.12."""
+
+    def __buffer__(self, *args, **kwargs):
+        ...
