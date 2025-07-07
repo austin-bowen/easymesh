@@ -89,6 +89,10 @@ class TestFixedLengthIntCodec(CodecTest):
         assert self.codec.byte_order == 'little'
         assert self.codec.signed is False
 
+    @pytest.mark.asyncio
+    async def test_encode_decode(self):
+        await self.assert_encode_decode(42)
+
     @pytest.mark.parametrize('value, expected', [
         (0, b'\x00\x00'),
         (1, b'\x01\x00'),
@@ -134,6 +138,10 @@ class TestLengthPrefixedStringCodec(CodecTest):
         assert self.codec.len_prefix_codec is self.len_prefix_codec
         assert self.codec.encoding == 'utf-8'
 
+    @pytest.mark.asyncio
+    async def test_encode_decode(self):
+        await self.assert_encode_decode('hello world')
+
     @pytest.mark.parametrize('data, expected', [
         ('', [b'\x00']),
         ('hello world', [b'\x0B', b'hello world']),
@@ -165,6 +173,10 @@ class TestTopicMessageCodec(CodecTest):
     def test_constructor_defaults(self):
         assert self.codec.topic_codec == self.topic_codec
         assert self.codec.data_codec == self.data_codec
+
+    @pytest.mark.asyncio
+    async def test_encode_decode(self):
+        await self.assert_encode_decode(Message('topic', 'data'))
 
     @pytest.mark.asyncio
     async def test_encode(self):
@@ -208,6 +220,12 @@ class TestServiceRequestCodec(CodecTest):
         assert self.codec.data_codec is self.data_codec
 
     @pytest.mark.asyncio
+    async def test_encode_decode(self):
+        await self.assert_encode_decode(
+            ServiceRequest(id=1, service='service', data='data')
+        )
+
+    @pytest.mark.asyncio
     async def test_encode(self):
         await self.assert_encode_writes(
             ServiceRequest(id=1, service='service', data='data'),
@@ -248,6 +266,12 @@ class TestServiceResponseCodec(CodecTest):
         assert self.codec.id_codec is self.id_codec
         assert self.codec.data_codec is self.data_codec
         assert self.codec.error_codec is self.error_codec
+
+    @pytest.mark.asyncio
+    async def test_encode_decode(self):
+        await self.assert_encode_decode(
+            ServiceResponse(id=1, data='data')
+        )
 
     @pytest.mark.asyncio
     async def test_encode_success_response(self):
