@@ -8,7 +8,9 @@ from easymesh.codec2 import (
     Codec,
     FixedLengthIntCodec,
     LengthPrefixedStringCodec,
+    MsgpackCodec,
     NodeMessageCodec,
+    PickleCodec,
     ServiceRequestCodec,
     ServiceResponseCodec,
     TopicMessageCodec,
@@ -20,6 +22,24 @@ from easymesh.types import Message, ServiceRequest, ServiceResponse
 class CodecTest:
     codec: Codec
 
+    async def assert_encode_decode(self, value) -> None:
+        writer = AsyncMock(spec=Writer)
+        await self.codec.encode(writer, value)
+
+        written_data = b''.join(
+            args.args[0] for args in writer.write.await_args_list
+        )
+
+        # Simulate a stream with repeated data
+        reader = BufferReader(written_data * 2)
+
+        decoded_objects = [
+            await self.codec.decode(reader),
+            await self.codec.decode(reader),
+        ]
+
+        assert decoded_objects == [value, value]
+
     async def assert_encode_writes(self, value, expected: list[bytes]):
         writer = AsyncMock(spec=Writer)
         await self.codec.encode(writer, value)
@@ -30,6 +50,30 @@ class CodecTest:
         reader = BufferReader(data)
         actual = await self.codec.decode(reader)
         assert actual == expected
+
+
+class TestPickleCodec(CodecTest):
+    codec: PickleCodec
+
+    def setup_method(self):
+        self.codec = PickleCodec()
+
+    @pytest.mark.asyncio
+    async def test_encode_decode(self):
+        data = dict(key='value', number=42, float_list=[1.2, 3.4])
+        await self.assert_encode_decode(data)
+
+
+class TestMsgpackCodec(CodecTest):
+    codec: MsgpackCodec
+
+    def setup_method(self):
+        self.codec = MsgpackCodec()
+
+    @pytest.mark.asyncio
+    async def test_encode_decode(self):
+        data = dict(key='value', number=42, float_list=[1.2, 3.4])
+        await self.assert_encode_decode(data)
 
 
 class TestFixedLengthIntCodec(CodecTest):
