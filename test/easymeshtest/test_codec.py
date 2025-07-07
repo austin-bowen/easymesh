@@ -8,7 +8,10 @@ from easymesh.codec2 import (
     Codec,
     FixedLengthIntCodec,
     LengthPrefixedStringCodec,
-    ServiceRequestCodec, ServiceResponseCodec, TopicMessageCodec,
+    NodeMessageCodec,
+    ServiceRequestCodec,
+    ServiceResponseCodec,
+    TopicMessageCodec,
 )
 from easymesh.node2.peer import Writer
 from easymesh.types import Message, ServiceRequest, ServiceResponse
@@ -239,6 +242,74 @@ class TestServiceResponseCodec(CodecTest):
             b'\x01\x00\xEE\x05error',
             ServiceResponse(id=1, error='error'),
         )
+
+
+class TestNodeMessageCodec:
+    def setup_method(self):
+        topic_codec = LengthPrefixedStringCodec(FixedLengthIntCodec(length=1))
+        data_codec = LengthPrefixedStringCodec(FixedLengthIntCodec(length=1))
+
+        self.topic_message_codec = TopicMessageCodec(topic_codec, data_codec)
+
+        id_codec = FixedLengthIntCodec(length=2)
+        service_codec = topic_codec
+
+        self.service_request_codec = ServiceRequestCodec(
+            id_codec,
+            service_codec,
+            data_codec,
+        )
+
+        error_codec = topic_codec
+
+        self.service_response_codec = ServiceResponseCodec(
+            id_codec,
+            data_codec,
+            error_codec,
+        )
+
+        self.codec = NodeMessageCodec(
+            self.topic_message_codec,
+            self.service_request_codec,
+            self.service_response_codec,
+        )
+
+    @pytest.mark.asyncio
+    async def test_encode_topic_message(self):
+        message = Message('topic', 'data')
+        result = await self.codec.encode_topic_message(message)
+        assert result == b't\x05topic\x04data'
+
+    @pytest.mark.asyncio
+    async def test_encode_service_request(self):
+        request = ServiceRequest(id=1, service='service', data='data')
+        result = await self.codec.encode_service_request(request)
+        assert result == b's\x01\x00\x07service\x04data'
+
+    @pytest.mark.asyncio
+    async def test_encode_service_response(self):
+        response = ServiceResponse(id=1, data='data')
+        result = await self.codec.encode_service_response(response)
+        assert result == b'\x01\x00\x00\x04data'
+
+    @pytest.mark.asyncio
+    async def test_decode_topic_message_or_service_request(self):
+        reader = BufferReader(
+            b't\x05topic\x04data'
+            b's\x01\x00\x07service\x04data'
+        )
+
+        message = await self.codec.decode_topic_message_or_service_request(reader)
+        assert message == Message('topic', 'data')
+
+        request = await self.codec.decode_topic_message_or_service_request(reader)
+        assert request == ServiceRequest(id=1, service='service', data='data')
+
+    @pytest.mark.asyncio
+    async def test_decode_service_response(self):
+        reader = BufferReader(b'\x01\x00\x00\x04data')
+        response = await self.codec.decode_service_response(reader)
+        assert response == ServiceResponse(id=1, data='data')
 
 
 class BufferReader(Reader):

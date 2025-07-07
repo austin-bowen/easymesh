@@ -310,7 +310,7 @@ class NodeMessageCodec:
         elif prefix == self.service_request_prefix:
             return await self.service_request_codec.decode(reader)
         else:
-            raise ValueError(f"Unknown prefix: {prefix!r}")
+            raise ValueError(f'Unknown prefix={prefix!r}')
 
     async def decode_service_response(self, reader: Reader) -> ServiceResponse:
         return await self.service_response_codec.decode(reader)
