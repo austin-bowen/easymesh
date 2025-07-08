@@ -81,6 +81,7 @@ class PeerConnection(NamedTuple):
 
 class PeerConnectionManager:
     async def get_connection(self, peer: MeshNodeSpec) -> PeerConnection:
+        # TODO
         ...
 
     async def get_connections(self, peers: Iterable[MeshNodeSpec]) -> list[PeerConnection]:

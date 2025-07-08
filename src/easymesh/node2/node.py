@@ -9,8 +9,10 @@ from easymesh.codec2 import (
     ServiceResponseCodec,
     TopicMessageCodec,
 )
-from easymesh.node2.peer import PeerConnectionSelector
+from easymesh.node2.loadbalancing import RoundRobinLoadBalancer, ServiceLoadBalancer, TopicLoadBalancer
+from easymesh.node2.peer import PeerConnectionManager, PeerConnectionSelector
 from easymesh.node2.topic import TopicListenerCallback, TopicListenerManager, TopicSender
+from easymesh.node2.topology import MeshTopologyManager
 from easymesh.types import Data, Topic
 
 logger = logging.getLogger(__name__)
@@ -54,8 +56,13 @@ class Node:
 
 async def build_node(
         data_codec: Codec[Data] = pickle_codec,
+        topic_load_balancer: TopicLoadBalancer = None,
+        service_load_balancer: ServiceLoadBalancer = None,
 ) -> Node:
-    connection_selector = PeerConnectionSelector()
+    connection_selector = build_peer_connection_selector(
+        topic_load_balancer,
+        service_load_balancer,
+    )
 
     node_message_codec = build_node_message_codec(data_codec)
 
@@ -66,6 +73,20 @@ async def build_node(
     return Node(
         topic_sender=topic_sender,
         topic_listener_manager=topic_listener_manager,
+    )
+
+
+def build_peer_connection_selector(
+        topic_load_balancer: TopicLoadBalancer | None,
+        service_load_balancer: ServiceLoadBalancer | None,
+) -> PeerConnectionSelector:
+    round_robin_load_balancer = RoundRobinLoadBalancer()
+
+    return PeerConnectionSelector(
+        topology_manager=MeshTopologyManager(),
+        topic_load_balancer=topic_load_balancer or round_robin_load_balancer,
+        service_load_balancer=service_load_balancer or round_robin_load_balancer,
+        connection_manager=PeerConnectionManager(),
     )
 
 
