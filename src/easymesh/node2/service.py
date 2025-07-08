@@ -5,7 +5,7 @@ from asyncio import Future
 from easymesh.asyncio import Reader
 from easymesh.codec2 import NodeMessageCodec
 from easymesh.node2.peer import PeerConnectionSelector
-from easymesh.types import Data, RequestId, ServiceRequest
+from easymesh.types import Data, RequestId, ServiceRequest, ServiceResponse
 
 logger = logging.getLogger(__name__)
 
@@ -23,10 +23,10 @@ class ServiceCaller:
         self._response_futures: dict[RequestId, Future] = {}
         self._response_handler_readers: set[Reader] = set()
 
-    async def request(self, service: str, data: Data | None) -> Data | None:
+    async def request(self, service: str, data: Data) -> Data:
         connection = await self.connection_selector.get_connection_for_service(service)
         if connection is None:
-            raise ServiceRequestError(f'No node hosting service={service!r}')
+            raise ValueError(f'No node hosting service={service!r}')
 
         self._start_response_handler(connection.reader)
 
@@ -42,9 +42,14 @@ class ServiceCaller:
                 await writer.write(request)
                 await writer.drain()
 
-            return await response_future
+            response: ServiceResponse = await response_future
         finally:
             self._response_futures.pop(request_id, None)
+
+        if response.error:
+            raise ServiceResponseError(response.error)
+
+        return response.data
 
     def _start_response_handler(self, reader: Reader) -> None:
         if reader not in self._response_handler_readers:
@@ -66,10 +71,7 @@ class ServiceCaller:
             logger.warning(f'Received response for unknown request id={response.id}')
             return
 
-        if response.error:
-            response_future.set_exception(ServiceResponseError(response.error))
-        else:
-            response_future.set_result(response)
+        response_future.set_result(response)
 
 
 class ServiceRequestError(Exception):
