@@ -11,9 +11,10 @@ from easymesh.codec2 import (
 )
 from easymesh.node2.loadbalancing import RoundRobinLoadBalancer, ServiceLoadBalancer, TopicLoadBalancer
 from easymesh.node2.peer import PeerConnectionManager, PeerConnectionSelector
+from easymesh.node2.service import ServiceCaller
 from easymesh.node2.topic import TopicListenerCallback, TopicListenerManager, TopicSender
 from easymesh.node2.topology import MeshTopologyManager
-from easymesh.types import Data, Topic
+from easymesh.types import Data, Service, Topic
 
 logger = logging.getLogger(__name__)
 
@@ -23,9 +24,11 @@ class Node:
             self,
             topic_sender: TopicSender,
             topic_listener_manager: TopicListenerManager,
+            service_caller: ServiceCaller,
     ):
         self.topic_sender = topic_sender
         self.topic_listener_manager = topic_listener_manager
+        self.service_caller = service_caller
 
     async def send(self, topic: Topic, data: Data = None) -> None:
         await self.topic_sender.send(topic, data)
@@ -48,6 +51,9 @@ class Node:
             await self.register()
         else:
             logger.warning(f"Attempted to remove non-existing listener for topic={topic!r}")
+
+    async def request(self, service: Service, data: Data = None) -> Data:
+        return await self.service_caller.request(service, data)
 
     async def register(self) -> None:
         # TODO
