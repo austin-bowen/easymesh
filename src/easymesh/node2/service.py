@@ -15,9 +15,11 @@ class ServiceCaller:
             self,
             connection_selector: PeerConnectionSelector,
             node_message_codec: NodeMessageCodec,
+            max_request_ids: int,
     ):
         self.connection_selector = connection_selector
         self.node_message_codec = node_message_codec
+        self.max_request_ids = max_request_ids
 
         self._next_request_id: RequestId = 0
         self._response_futures: dict[RequestId, Future] = {}
@@ -30,14 +32,11 @@ class ServiceCaller:
 
         self._start_response_handler(connection.reader)
 
-        request_id = self._next_request_id
-        self._next_request_id += 1
-
-        request = ServiceRequest(request_id, service, data)
-        request = await self.node_message_codec.encode_service_request(request)
-
-        response_future = self._response_futures[request_id] = Future()
+        request_id, response_future = self._get_request_id_and_response_future()
         try:
+            request = ServiceRequest(request_id, service, data)
+            request = await self.node_message_codec.encode_service_request(request)
+
             async with connection.writer as writer:
                 await writer.write(request)
                 await writer.drain()
@@ -50,6 +49,28 @@ class ServiceCaller:
             raise ServiceResponseError(response.error)
 
         return response.data
+
+    def _get_request_id_and_response_future(self) -> tuple[RequestId, Future]:
+        request_id = self._get_request_id()
+        response_future = self._response_futures[request_id] = Future()
+        return request_id, response_future
+
+    def _get_request_id(self) -> RequestId:
+        request_id = self._find_next_available_request_id()
+        self._inc_next_request_id()
+        return request_id
+
+    def _find_next_available_request_id(self) -> RequestId:
+        for _ in range(self.max_request_ids):
+            if self._next_request_id not in self._response_futures:
+                return self._next_request_id
+
+            self._inc_next_request_id()
+
+        raise ServiceRequestError(f'All {self.max_request_ids} request IDs are in use')
+
+    def _inc_next_request_id(self) -> None:
+        self._next_request_id = (self._next_request_id + 1) % self.max_request_ids
 
     def _start_response_handler(self, reader: Reader) -> None:
         if reader not in self._response_handler_readers:

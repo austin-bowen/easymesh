@@ -4,7 +4,7 @@ import pytest
 
 from easymesh.codec2 import NodeMessageCodec
 from easymesh.node2.peer import LockableWriter, PeerConnection, PeerConnectionSelector
-from easymesh.node2.service import ServiceCaller, ServiceResponseError
+from easymesh.node2.service import ServiceCaller, ServiceRequestError, ServiceResponseError
 from easymesh.types import ServiceResponse
 
 
@@ -20,10 +20,12 @@ class TestServiceCaller:
         )
 
         self.node_message_codec = AsyncMock(spec=NodeMessageCodec)
+        self.node_message_codec.decode_service_response.side_effect = []
 
         self.service_caller = ServiceCaller(
             connection_selector,
             self.node_message_codec,
+            max_request_id=10,
         )
 
     @pytest.mark.asyncio
@@ -57,3 +59,12 @@ class TestServiceCaller:
 
         self.connection.writer.write.assert_not_awaited()
         self.connection.writer.drain.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_request_raises_ServiceRequestError_when_all_request_ids_are_taken(self):
+        self.service_caller._response_futures = {
+            i: AsyncMock() for i in range(self.service_caller.max_request_ids)
+        }
+
+        with pytest.raises(ServiceRequestError):
+            await self.service_caller.request('service', 'data')
