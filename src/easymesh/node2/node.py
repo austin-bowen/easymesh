@@ -76,9 +76,16 @@ async def build_node(
 
     topic_listener_manager = TopicListenerManager()
 
+    service_caller = ServiceCaller(
+        connection_selector,
+        node_message_codec,
+        max_request_ids=2 ** (8 * 2),  # 2 bytes for request ID
+    )
+
     return Node(
         topic_sender=topic_sender,
         topic_listener_manager=topic_listener_manager,
+        service_caller=service_caller,
     )
 
 
