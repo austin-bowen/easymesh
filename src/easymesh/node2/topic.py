@@ -6,7 +6,7 @@ from easymesh.codec2 import NodeMessageCodec
 from easymesh.node2.peer import PeerConnection, PeerConnectionSelector
 from easymesh.types import Data, Message, Topic
 
-TopicListenerCallback = Callable[[Topic, Data | None], Awaitable[None]]
+TopicListenerCallback = Callable[[Topic, Data], Awaitable[None]]
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +20,7 @@ class TopicSender:
         self.connection_selector = connection_selector
         self.node_message_codec = node_message_codec
 
-    async def send(self, topic: Topic, data: Data | None) -> None:
+    async def send(self, topic: Topic, data: Data) -> None:
         # TODO handle case of self-sending more efficiently
 
         connections = await self.connection_selector.get_connections_for_topic(topic)

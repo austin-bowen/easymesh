@@ -24,7 +24,7 @@ TopicCallback = Callable[[Topic, Data], None]
 
 class Message(NamedTuple):
     topic: Topic
-    data: Data | None
+    data: Data
 
 
 ServiceName = str
@@ -36,12 +36,12 @@ RequestId = int
 class ServiceRequest(NamedTuple):
     id: RequestId
     service: ServiceName
-    data: Data | None
+    data: Data
 
 
 class ServiceResponse(NamedTuple):
     id: RequestId
-    data: Data | None = None
+    data: Data = None
     error: str | None = None
 
 

@@ -53,7 +53,7 @@ class BasicServicesOverTopicsManager(ServicesManager):
 
         response_topic = get_response_topic(self.uuid)
 
-        async def response_handler(_: Topic, data: tuple[RequestId, Data | None]) -> None:
+        async def response_handler(_: Topic, data: tuple[RequestId, Data]) -> None:
             request_id, response_data = data
 
             response_future = self._response_futures.pop(request_id, None)
@@ -92,7 +92,7 @@ class BasicServicesOverTopicsManager(ServicesManager):
     async def add_service(self, service: ServiceName, handler: ServiceCallback) -> None:
         service_topic = get_service_topic(service)
 
-        async def meta_handler(_: Topic, data: tuple[bytes, RequestId, Data | None]) -> None:
+        async def meta_handler(_: Topic, data: tuple[bytes, RequestId, Data]) -> None:
             client_uuid_bytes, request_id, data = data
 
             response = await handler(service, data)

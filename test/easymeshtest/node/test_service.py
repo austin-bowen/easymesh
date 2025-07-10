@@ -25,7 +25,7 @@ class TestServiceCaller:
         self.service_caller = ServiceCaller(
             connection_selector,
             self.node_message_codec,
-            max_request_id=10,
+            max_request_ids=10,
         )
 
     @pytest.mark.asyncio
