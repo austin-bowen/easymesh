@@ -37,6 +37,7 @@ class TestServiceCaller:
         response = await self.service_caller.request('service', 'data')
         assert response == 'response'
 
+        assert self.service_caller._next_request_id == 1
         self._assert_no_pending_requests()
         assert self.connection.writer.write.await_count == 1
         assert self.connection.writer.drain.await_count == 1
