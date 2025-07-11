@@ -170,9 +170,6 @@ class PeerConnectionManager:
             self._connections[node.id] = connection
             return connection
 
-    async def get_connections(self, nodes: Iterable[MeshNodeSpec]) -> list[PeerConnection]:
-        return [await self.get_connection(peer) for peer in nodes]
-
     async def close_connection(self, node: MeshNodeSpec) -> None:
         async with self._connections_lock:
             connection = self._connections.pop(node.id, None)
@@ -230,25 +227,21 @@ class PeerConnectionManager:
             await self.writer.wait_closed()
 
 
-class PeerConnectionSelector:
+class PeerSelector:
     def __init__(
             self,
             topology_manager: MeshTopologyManager,
             topic_load_balancer: TopicLoadBalancer,
             service_load_balancer: ServiceLoadBalancer,
-            connection_manager: PeerConnectionManager,
     ):
         self.topology_manager = topology_manager
         self.topic_load_balancer = topic_load_balancer
         self.service_load_balancer = service_load_balancer
-        self.connection_manager = connection_manager
 
-    async def get_connections_for_topic(self, topic: Topic) -> list[PeerConnection]:
+    def get_nodes_for_topic(self, topic: Topic) -> list[MeshNodeSpec]:
         peers = self.topology_manager.get_nodes_listening_to_topic(topic)
-        peers = self.topic_load_balancer.choose_nodes(peers, topic)
-        return await self.connection_manager.get_connections(peers)
+        return self.topic_load_balancer.choose_nodes(peers, topic)
 
-    async def get_connection_for_service(self, service: Service) -> PeerConnection | None:
+    def get_node_for_service(self, service: Service) -> MeshNodeSpec | None:
         peers = self.topology_manager.get_nodes_providing_service(service)
-        peer = self.service_load_balancer.choose_node(peers, service)
-        return await self.connection_manager.get_connection(peer) if peer else None
+        return self.service_load_balancer.choose_node(peers, service)

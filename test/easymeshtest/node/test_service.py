@@ -3,8 +3,9 @@ from unittest.mock import AsyncMock
 import pytest
 
 from easymesh.codec2 import NodeMessageCodec
-from easymesh.node2.peer import LockableWriter, PeerConnection, PeerConnectionSelector
+from easymesh.node2.peer import LockableWriter, PeerConnection, PeerConnectionManager, PeerSelector
 from easymesh.node2.service import ServiceCaller, ServiceRequestError, ServiceResponseError
+from easymesh.specs import MeshNodeSpec
 from easymesh.types import ServiceResponse
 
 
@@ -14,16 +15,22 @@ class TestServiceCaller:
         self.connection.writer = AsyncMock(spec=LockableWriter)
         self.connection.writer.__aenter__.return_value = self.connection.writer
 
-        connection_selector = AsyncMock(spec=PeerConnectionSelector)
-        connection_selector.get_connection_for_service.side_effect = (
-            lambda service: self.connection if service == 'service' else None
+        node = AsyncMock(spec=MeshNodeSpec)
+
+        peer_selector = AsyncMock(spec=PeerSelector)
+        peer_selector.get_node_for_service.side_effect = (
+            lambda service: node if service == 'service' else None
         )
+
+        connection_manager = AsyncMock(spec=PeerConnectionManager)
+        connection_manager.get_connection.return_value = self.connection
 
         self.node_message_codec = AsyncMock(spec=NodeMessageCodec)
         self.node_message_codec.decode_service_response.side_effect = []
 
         self.service_caller = ServiceCaller(
-            connection_selector,
+            peer_selector,
+            connection_manager,
             self.node_message_codec,
             max_request_ids=10,
         )

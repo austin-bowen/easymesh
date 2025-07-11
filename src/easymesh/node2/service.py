@@ -7,7 +7,7 @@ from weakref import WeakKeyDictionary
 
 from easymesh.asyncio import Reader
 from easymesh.codec2 import NodeMessageCodec
-from easymesh.node2.peer import PeerConnectionSelector
+from easymesh.node2.peer import PeerSelector, PeerConnectionManager
 from easymesh.types import Data, RequestId, ServiceRequest, ServiceResponse
 
 logger = logging.getLogger(__name__)
@@ -16,11 +16,13 @@ logger = logging.getLogger(__name__)
 class ServiceCaller:
     def __init__(
             self,
-            connection_selector: PeerConnectionSelector,
+            peer_selector: PeerSelector,
+            connection_manager: PeerConnectionManager,
             node_message_codec: NodeMessageCodec,
             max_request_ids: int,
     ):
-        self.connection_selector = connection_selector
+        self.peer_selector = peer_selector
+        self.connection_selector = connection_manager
         self.node_message_codec = node_message_codec
         self.max_request_ids = max_request_ids
 
@@ -31,9 +33,11 @@ class ServiceCaller:
         ] = WeakKeyDictionary()
 
     async def request(self, service: str, data: Data) -> Data:
-        connection = await self.connection_selector.get_connection_for_service(service)
-        if connection is None:
+        node = self.peer_selector.get_node_for_service(service)
+        if node is None:
             raise ValueError(f'No node hosting service={service!r}')
+
+        connection = await self.connection_selector.get_connection(node)
 
         self._start_response_handler(connection.reader)
 
