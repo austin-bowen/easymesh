@@ -1,12 +1,14 @@
-from asyncio import Lock
+from asyncio import Lock, StreamReader, StreamWriter, open_connection, open_unix_connection
 from collections.abc import Iterable
 from typing import NamedTuple, Protocol
 
 from easymesh.asyncio import Reader
+from easymesh.authentication import Authenticator
+from easymesh.network import get_hostname
 from easymesh.node2.loadbalancing import ServiceLoadBalancer, TopicLoadBalancer
 from easymesh.node2.topology import MeshTopologyManager
-from easymesh.specs import MeshNodeSpec
-from easymesh.types import Buffer, Service, Topic
+from easymesh.specs import ConnectionSpec, IpConnectionSpec, MeshNodeSpec, NodeId, UnixConnectionSpec
+from easymesh.types import Buffer, Host, Service, Topic
 
 
 # TODO move this
@@ -25,6 +27,24 @@ class Writer(Protocol):
 
 
 # TODO move this
+class FullyAsyncStreamWriter(Writer):
+    def __init__(self, writer: StreamWriter):
+        self.writer = writer
+
+    async def write(self, data: bytes) -> None:
+        self.writer.write(data)
+
+    async def drain(self) -> None:
+        await self.writer.drain()
+
+    async def close(self) -> None:
+        self.writer.close()
+
+    async def wait_closed(self) -> None:
+        await self.writer.wait_closed()
+
+
+# TODO move this
 class BufferWriter(bytearray, Buffer, Writer):
     async def write(self, data: bytes) -> None:
         self.extend(data)
@@ -39,10 +59,11 @@ class BufferWriter(bytearray, Buffer, Writer):
         pass
 
 
+# TODO move this
 class LockableWriter(Writer):
-    def __init__(self, writer: Writer):
+    def __init__(self, writer: Writer, lock: Lock = None):
         self.writer = writer
-        self._lock = Lock()
+        self._lock = lock or Lock()
 
     @property
     def lock(self) -> Lock:
@@ -53,22 +74,26 @@ class LockableWriter(Writer):
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
-        self.lock.release()
+        self._lock.release()
 
     async def write(self, data: bytes) -> None:
-        assert self.lock.locked()
+        self.require_locked()
         await self.writer.write(data)
 
     async def drain(self) -> None:
-        assert self.lock.locked()
+        self.require_locked()
         await self.writer.drain()
 
     async def close(self) -> None:
-        assert self.lock.locked()
+        self.require_locked()
         await self.writer.close()
 
     async def wait_closed(self) -> None:
         await self.writer.wait_closed()
+
+    def require_locked(self) -> None:
+        if not self._lock.locked():
+            raise RuntimeError('Writer must be locked before writing')
 
 
 class PeerConnection(NamedTuple):
@@ -79,13 +104,130 @@ class PeerConnection(NamedTuple):
         await self.writer.close()
 
 
-class PeerConnectionManager:
-    async def get_connection(self, peer: MeshNodeSpec) -> PeerConnection:
-        # TODO
-        ...
+class PeerConnectionBuilder:
+    def __init__(self, authenticator: Authenticator, host: Host = None):
+        self.authenticator = authenticator
+        self.host = host or get_hostname()
 
-    async def get_connections(self, peers: Iterable[MeshNodeSpec]) -> list[PeerConnection]:
-        return [await self.get_connection(peer) for peer in peers]
+    async def build(self, conn_specs: Iterable[ConnectionSpec]) -> tuple[Reader, Writer]:
+        reader_writer = None
+        for conn_spec in conn_specs:
+            try:
+                reader_writer = await self._get_connection(conn_spec)
+            except ConnectionError as e:
+                print(f'Error connecting to {conn_spec}: {e}')
+                continue
+
+            if reader_writer is not None:
+                break
+
+        if reader_writer is None:
+            raise ConnectionError('Could not connect to any connection spec')
+
+        reader, writer = reader_writer
+        # TODO make authenticators use the new writer interface
+        await self.authenticator.authenticate(reader, writer)
+
+        writer = FullyAsyncStreamWriter(writer)
+
+        return reader, writer
+
+    async def _get_connection(self, conn_spec: ConnectionSpec) -> tuple[StreamReader, StreamWriter] | None:
+        if isinstance(conn_spec, IpConnectionSpec):
+            return await open_connection(
+                host=conn_spec.host,
+                port=conn_spec.port,
+            )
+        elif isinstance(conn_spec, UnixConnectionSpec):
+            if conn_spec.host != self.host:
+                return None
+
+            return await open_unix_connection(path=conn_spec.path)
+        else:
+            raise ValueError(f'Invalid connection spec: {conn_spec}')
+
+
+class PeerConnectionManager:
+    def __init__(self, conn_builder: PeerConnectionBuilder):
+        self.conn_builder = conn_builder
+
+        self._connections: dict[NodeId, PeerConnection] = {}
+        self._connections_lock = Lock()
+
+    async def get_connection(self, node: MeshNodeSpec) -> PeerConnection:
+        async with self._connections_lock:
+            connection = self._connections.get(node.id, None)
+            if connection:
+                return connection
+
+            reader, writer = await self.conn_builder.build(node.connections)
+
+            reader = self._Reader(reader, self, node)
+            writer = self._Writer(writer, self, node)
+            writer = LockableWriter(writer)
+
+            connection = PeerConnection(reader, writer)
+            self._connections[node.id] = connection
+            return connection
+
+    async def get_connections(self, nodes: Iterable[MeshNodeSpec]) -> list[PeerConnection]:
+        return [await self.get_connection(peer) for peer in nodes]
+
+    async def close_connection(self, node: MeshNodeSpec) -> None:
+        async with self._connections_lock:
+            connection = self._connections.pop(node.id, None)
+            if connection:
+                await connection.close()
+
+    class _Managed:
+        def __init__(self, manager: 'PeerConnectionManager', node: MeshNodeSpec):
+            self.manager = manager
+            self.node = node
+
+        async def _close_on_error(self, func, *args):
+            try:
+                return await func(*args)
+            except Exception:
+                await self.manager.close_connection(self.node)
+                raise
+
+    class _Reader(_Managed, Reader):
+        def __init__(
+                self,
+                reader: Reader,
+                manager: 'PeerConnectionManager',
+                node: MeshNodeSpec,
+        ):
+            super().__init__(manager, node)
+            self.reader = reader
+
+        async def readexactly(self, n: int) -> bytes:
+            return await self._close_on_error(self.reader.readexactly, n)
+
+        async def readuntil(self, separator: bytes) -> bytes:
+            return await self._close_on_error(self.reader.readuntil, separator)
+
+    class _Writer(_Managed, Writer):
+        def __init__(
+                self,
+                writer: Writer,
+                manager: 'PeerConnectionManager',
+                node: MeshNodeSpec,
+        ):
+            super().__init__(manager, node)
+            self.writer = writer
+
+        async def write(self, data: bytes) -> None:
+            await self._close_on_error(self.writer.write, data)
+
+        async def drain(self) -> None:
+            await self._close_on_error(self.writer.drain)
+
+        async def close(self) -> None:
+            await self.writer.close()
+
+        async def wait_closed(self) -> None:
+            await self.writer.wait_closed()
 
 
 class PeerConnectionSelector:
