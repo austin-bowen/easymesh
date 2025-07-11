@@ -37,6 +37,7 @@ class TestServiceCaller:
         response = await self.service_caller.request('service', 'data')
         assert response == 'response'
 
+        self._assert_no_pending_requests()
         assert self.connection.writer.write.await_count == 1
         assert self.connection.writer.drain.await_count == 1
 
@@ -49,6 +50,7 @@ class TestServiceCaller:
         with pytest.raises(ServiceResponseError, match='error message'):
             await self.service_caller.request('service', 'data')
 
+        self._assert_no_pending_requests()
         assert self.connection.writer.write.await_count == 1
         assert self.connection.writer.drain.await_count == 1
 
@@ -57,14 +59,31 @@ class TestServiceCaller:
         with pytest.raises(ValueError, match="No node hosting service='unknown_service'"):
             await self.service_caller.request('unknown_service', 'data')
 
+        self._assert_no_pending_requests()
         self.connection.writer.write.assert_not_awaited()
         self.connection.writer.drain.assert_not_awaited()
 
     @pytest.mark.asyncio
     async def test_request_raises_ServiceRequestError_when_all_request_ids_are_taken(self):
-        self.service_caller._response_futures = {
+        self.service_caller._response_futures[self.connection.reader] = {
             i: AsyncMock() for i in range(self.service_caller.max_request_ids)
         }
 
         with pytest.raises(ServiceRequestError):
             await self.service_caller.request('service', 'data')
+
+    @pytest.mark.asyncio
+    async def test_requests_fail_for_reader_with_error(self):
+        self.node_message_codec.decode_service_response.side_effect = ConnectionError()
+
+        with pytest.raises(
+                ServiceResponseError,
+                match='Reader .* was closed before response was received',
+        ):
+            await self.service_caller.request('service', 'data')
+
+        self._assert_no_pending_requests()
+
+    def _assert_no_pending_requests(self):
+        for response_futures in self.service_caller._response_futures.values():
+            assert not response_futures

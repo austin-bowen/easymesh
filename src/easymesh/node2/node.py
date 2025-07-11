@@ -79,7 +79,7 @@ async def build_node(
     service_caller = ServiceCaller(
         connection_selector,
         node_message_codec,
-        max_request_ids=2 ** (8 * 2),  # 2 bytes for request ID
+        max_request_ids=2 ** (8 * 2),  # Codec uses 2 bytes for request ID
     )
 
     return Node(
