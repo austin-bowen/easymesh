@@ -151,7 +151,7 @@ class PeerManager:
         self._peers = [
             MeshPeer(
                 id=node.id,
-                topics=node.listening_to_topics,
+                topics=node.topics,
                 connection=LazyPeerConnection(
                     peer_spec=node,
                     peer_connection_pool=self._connection_pool,

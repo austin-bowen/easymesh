@@ -10,11 +10,14 @@ from easymesh.codec2 import (
     ServiceResponseCodec,
     TopicMessageCodec,
 )
+from easymesh.coordinator.client import MeshCoordinatorClient
 from easymesh.node2.loadbalancing import RoundRobinLoadBalancer, ServiceLoadBalancer, TopicLoadBalancer
 from easymesh.node2.peer import PeerConnectionBuilder, PeerConnectionManager, PeerSelector
 from easymesh.node2.service import ServiceCaller
 from easymesh.node2.topic import TopicListenerCallback, TopicListenerManager, TopicSender
-from easymesh.node2.topology import MeshTopologyManager
+from easymesh.node2.topology import MeshTopologyManager, get_removed_nodes
+from easymesh.reqres import MeshTopologyBroadcast
+from easymesh.specs import MeshNodeSpec, NodeId
 from easymesh.types import Data, Service, Topic
 
 logger = logging.getLogger(__name__)
@@ -23,13 +26,27 @@ logger = logging.getLogger(__name__)
 class Node:
     def __init__(
             self,
+            id: NodeId,
+            coordinator_client: MeshCoordinatorClient,
+            topology_manager: MeshTopologyManager,
+            connection_manager: PeerConnectionManager,
             topic_sender: TopicSender,
             topic_listener_manager: TopicListenerManager,
             service_caller: ServiceCaller,
     ):
+        self._id = id
+        self.coordinator_client = coordinator_client
+        self.topology_manager = topology_manager
+        self.connection_manager = connection_manager
         self.topic_sender = topic_sender
         self.topic_listener_manager = topic_listener_manager
         self.service_caller = service_caller
+
+        coordinator_client.set_broadcast_handler(self._handle_topology_broadcast)
+
+    @property
+    def id(self) -> NodeId:
+        return self._id
 
     async def send(self, topic: Topic, data: Data = None) -> None:
         await self.topic_sender.send(topic, data)
@@ -57,18 +74,49 @@ class Node:
         return await self.service_caller.request(service, data)
 
     async def register(self) -> None:
-        # TODO
-        ...
+        node_spec = self._build_node_spec()
+        logger.info('Registering node with coordinator')
+        logger.debug(f'node_spec={node_spec}')
+        await self.coordinator_client.register_node(node_spec)
+
+    def _build_node_spec(self) -> MeshNodeSpec:
+        return MeshNodeSpec(
+            id=self.id,
+            connections=...,  # TODO
+            topics=self.topic_listener_manager.topics,
+            services=set(),  # TODO
+        )
+
+    async def _handle_topology_broadcast(self, broadcast: MeshTopologyBroadcast) -> None:
+        logger.debug(
+            f'Received mesh topology broadcast with '
+            f'{len(broadcast.mesh_topology.nodes)} nodes.'
+        )
+
+        removed_nodes = get_removed_nodes(
+            old_topology=self.topology_manager.topology,
+            new_topology=broadcast.mesh_topology,
+        )
+        logger.debug(f'Removed nodes: {removed_nodes}')
+
+        self.topology_manager.topology = broadcast.mesh_topology
+
+        for node in removed_nodes:
+            await self.connection_manager.close_connection(node)
 
 
 async def build_node(
+        name: str,
         data_codec: Codec[Data] = pickle_codec,
         topic_load_balancer: TopicLoadBalancer = None,
         service_load_balancer: ServiceLoadBalancer = None,
         authkey: bytes = None,
         authenticator: Authenticator = None,
 ) -> Node:
+    topology_manager = MeshTopologyManager()
+
     peer_selector = build_peer_selector(
+        topology_manager,
         topic_load_balancer,
         service_load_balancer,
     )
@@ -89,6 +137,10 @@ async def build_node(
     )
 
     return Node(
+        id=NodeId(name),
+        coordinator_client=...,  # TODO
+        topology_manager=topology_manager,
+        connection_manager=connection_manager,
         topic_sender=topic_sender,
         topic_listener_manager=topic_listener_manager,
         service_caller=service_caller,
@@ -96,13 +148,14 @@ async def build_node(
 
 
 def build_peer_selector(
+        topology_manager: MeshTopologyManager,
         topic_load_balancer: TopicLoadBalancer | None,
         service_load_balancer: ServiceLoadBalancer | None,
 ) -> PeerSelector:
     round_robin_load_balancer = RoundRobinLoadBalancer()
 
     return PeerSelector(
-        topology_manager=MeshTopologyManager(),
+        topology_manager,
         topic_load_balancer=topic_load_balancer or round_robin_load_balancer,
         service_load_balancer=service_load_balancer or round_robin_load_balancer,
     )

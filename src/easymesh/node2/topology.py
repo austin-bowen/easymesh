@@ -27,7 +27,7 @@ class MeshTopologyManager:
         topic_nodes = defaultdict(list)
 
         for node in self.topology.nodes:
-            for topic in node.listening_to_topics:
+            for topic in node.topics:
                 topic_nodes[topic].append(node)
 
         self._topic_nodes_cache = topic_nodes
@@ -44,7 +44,7 @@ class MeshTopologyManager:
     def get_nodes_listening_to_topic(self, topic: Topic) -> list[MeshNodeSpec]:
         return [
             node for node in self.topology.nodes
-            if topic in node.listening_to_topics
+            if topic in node.topics
         ]
 
     def get_nodes_providing_service(self, service: str) -> list[MeshNodeSpec]:
@@ -52,3 +52,21 @@ class MeshTopologyManager:
             node for node in self.topology.nodes
             if service in node.services
         ]
+
+
+def get_removed_nodes(
+        old_topology: MeshTopologySpec,
+        new_topology: MeshTopologySpec,
+) -> list[MeshNodeSpec]:
+    """
+    Returns a list of nodes that were removed from the topology.
+    """
+
+    new_node_ids = {node.id for node in new_topology.nodes}
+
+    removed_nodes = [
+        node for node in old_topology.nodes
+        if node.id not in new_node_ids
+    ]
+
+    return removed_nodes

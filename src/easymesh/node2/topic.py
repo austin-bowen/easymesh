@@ -48,6 +48,10 @@ class TopicListenerManager:
     def __init__(self):
         self._listeners: dict[Topic, TopicListenerCallback] = {}
 
+    @property
+    def topics(self) -> set[Topic]:
+        return set(self._listeners.keys())
+
     def get_listener(self, topic: Topic) -> TopicListenerCallback | None:
         return self._listeners.get(topic)
 

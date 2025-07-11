@@ -40,7 +40,7 @@ class NodeId:
 class MeshNodeSpec:
     id: NodeId
     connections: list[ConnectionSpec]
-    listening_to_topics: set[Topic]
+    topics: set[Topic]
     services: set[Service]
 
 

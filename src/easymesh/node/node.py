@@ -119,7 +119,7 @@ class MeshNode:
         node_spec = MeshNodeSpec(
             id=self.id,
             connections=self._connection_specs,
-            listening_to_topics=self._listener_manager.get_topics(),
+            topics=self._listener_manager.get_topics(),
         )
 
         self.log(f'node_spec={node_spec}')

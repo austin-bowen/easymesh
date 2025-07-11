@@ -18,6 +18,11 @@ MeshTopologyBroadcastHandler = Callable[[MeshTopologyBroadcast], Awaitable[None]
 class MeshCoordinatorClient(ABC):
     mesh_topology_broadcast_handler: MeshTopologyBroadcastHandler
 
+    def set_broadcast_handler(
+            self, handler: MeshTopologyBroadcastHandler
+    ) -> None:
+        self.mesh_topology_broadcast_handler = handler
+
     @abstractmethod
     async def send_heartbeat(self) -> None:
         ...
