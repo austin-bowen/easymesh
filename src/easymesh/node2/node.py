@@ -1,5 +1,6 @@
 import logging
 
+from easymesh.authentication import Authenticator, optional_authkey_authenticator
 from easymesh.codec import Codec, pickle_codec
 from easymesh.codec2 import (
     FixedLengthIntCodec,
@@ -10,7 +11,7 @@ from easymesh.codec2 import (
     TopicMessageCodec,
 )
 from easymesh.node2.loadbalancing import RoundRobinLoadBalancer, ServiceLoadBalancer, TopicLoadBalancer
-from easymesh.node2.peer import PeerConnectionManager, PeerConnectionSelector
+from easymesh.node2.peer import PeerConnectionBuilder, PeerConnectionManager, PeerSelector
 from easymesh.node2.service import ServiceCaller
 from easymesh.node2.topic import TopicListenerCallback, TopicListenerManager, TopicSender
 from easymesh.node2.topology import MeshTopologyManager
@@ -64,20 +65,25 @@ async def build_node(
         data_codec: Codec[Data] = pickle_codec,
         topic_load_balancer: TopicLoadBalancer = None,
         service_load_balancer: ServiceLoadBalancer = None,
+        authkey: bytes = None,
+        authenticator: Authenticator = None,
 ) -> Node:
-    connection_selector = build_peer_connection_selector(
+    peer_selector = build_peer_selector(
         topic_load_balancer,
         service_load_balancer,
     )
 
+    connection_manager = build_peer_connection_manager(authkey, authenticator)
+
     node_message_codec = build_node_message_codec(data_codec)
 
-    topic_sender = TopicSender(connection_selector, node_message_codec)
+    topic_sender = TopicSender(peer_selector, connection_manager, node_message_codec)
 
     topic_listener_manager = TopicListenerManager()
 
     service_caller = ServiceCaller(
-        connection_selector,
+        peer_selector,
+        connection_manager,
         node_message_codec,
         max_request_ids=2 ** (8 * 2),  # Codec uses 2 bytes for request ID
     )
@@ -89,18 +95,26 @@ async def build_node(
     )
 
 
-def build_peer_connection_selector(
+def build_peer_selector(
         topic_load_balancer: TopicLoadBalancer | None,
         service_load_balancer: ServiceLoadBalancer | None,
-) -> PeerConnectionSelector:
+) -> PeerSelector:
     round_robin_load_balancer = RoundRobinLoadBalancer()
 
-    return PeerConnectionSelector(
+    return PeerSelector(
         topology_manager=MeshTopologyManager(),
         topic_load_balancer=topic_load_balancer or round_robin_load_balancer,
         service_load_balancer=service_load_balancer or round_robin_load_balancer,
-        connection_manager=PeerConnectionManager(),
     )
+
+
+def build_peer_connection_manager(
+        authkey: bytes = None,
+        authenticator: Authenticator = None,
+) -> PeerConnectionManager:
+    authenticator = authenticator or optional_authkey_authenticator(authkey)
+    connection_builder = PeerConnectionBuilder(authenticator)
+    return PeerConnectionManager(connection_builder)
 
 
 def build_node_message_codec(
