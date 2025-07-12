@@ -22,7 +22,7 @@ from easymesh.node2.topic import TopicListenerCallback, TopicListenerManager, To
 from easymesh.node2.topology import MeshTopologyManager, get_removed_nodes
 from easymesh.reqres import MeshTopologyBroadcast
 from easymesh.specs import MeshNodeSpec, NodeId
-from easymesh.types import Data, Host, Port, ServerHost, Service, Topic
+from easymesh.types import Data, Host, Message, Port, ServerHost, Service, ServiceRequest, Topic
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +33,7 @@ class Node:
             id: NodeId,
             coordinator_client: MeshCoordinatorClient,
             servers_manager: ServersManager,
+            client_handler: 'ClientHandler',
             topology_manager: MeshTopologyManager,
             connection_manager: PeerConnectionManager,
             topic_sender: TopicSender,
@@ -42,6 +43,7 @@ class Node:
         self._id = id
         self.coordinator_client = coordinator_client
         self.servers_manager = servers_manager
+        self.client_handler = client_handler
         self.topology_manager = topology_manager
         self.connection_manager = connection_manager
         self.topic_sender = topic_sender
@@ -58,15 +60,9 @@ class Node:
         logger.info(f'Starting node {self.id}')
 
         logger.debug('Starting servers')
-        await self.servers_manager.start_servers(self._handle_client_connected)
+        await self.servers_manager.start_servers(self.client_handler.handle_client)
 
         await self.register()
-
-    async def _handle_client_connected(self, reader: Reader, writer: Writer) -> None:
-        peer_name = writer.get_extra_info('peername') or writer.get_extra_info('sockname')
-        logger.debug(f'New connection from: {peer_name}')
-
-        # TODO
 
     async def send(self, topic: Topic, data: Data = None) -> None:
         await self.topic_sender.send(topic, data)
@@ -79,10 +75,7 @@ class Node:
         self.topic_listener_manager.set_listener(topic, callback)
         await self.register()
 
-    async def remove_listener(
-            self,
-            topic: Topic,
-    ) -> None:
+    async def remove_listener(self, topic: Topic) -> None:
         callback = self.topic_listener_manager.remove_listener(topic)
 
         if callback is not None:
@@ -123,6 +116,45 @@ class Node:
 
         for node in removed_nodes:
             await self.connection_manager.close_connection(node)
+
+
+class ClientHandler:
+    def __init__(
+            self,
+            node_message_codec: NodeMessageCodec,
+            topic_listener_manager: TopicListenerManager,
+    ):
+        self.node_message_codec = node_message_codec
+        self.topic_listener_manager = topic_listener_manager
+
+    async def handle_client(self, reader: Reader, writer: Writer) -> None:
+        peer_name = writer.get_extra_info('peername') or writer.get_extra_info('sockname')
+        logger.debug(f'New connection from: {peer_name}')
+
+        while True:
+            message = await self.node_message_codec.decode_topic_message_or_service_request(reader)
+
+            if isinstance(message, Message):
+                await self._handle_topic_message(message)
+            elif isinstance(message, ServiceRequest):
+                await self._handle_service_request(message)
+            else:
+                raise RuntimeError('Unreachable code')
+
+    async def _handle_topic_message(self, message: Message) -> None:
+        listener = self.topic_listener_manager.get_listener(message.topic)
+
+        if listener:
+            await listener(message.topic, message.data)
+        else:
+            logger.warning(
+                f'Received message for topic={message.topic!r} '
+                f'but no listener is registered for it.'
+            )
+
+    async def _handle_service_request(self, request: ServiceRequest) -> None:
+        # TODO
+        ...
 
 
 async def build_node(
@@ -175,6 +207,8 @@ async def build_node(
 
     topic_listener_manager = TopicListenerManager()
 
+    client_handler = ClientHandler(node_message_codec, topic_listener_manager)
+
     service_caller = ServiceCaller(
         peer_selector,
         connection_manager,
@@ -186,6 +220,7 @@ async def build_node(
         id=NodeId(name),
         coordinator_client=coordinator_client,
         servers_manager=servers_manager,
+        client_handler=client_handler,
         topology_manager=topology_manager,
         connection_manager=connection_manager,
         topic_sender=topic_sender,
