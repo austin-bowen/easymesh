@@ -17,8 +17,8 @@ class TestNoAuthenticator:
     async def test_authenticate_should_do_nothing(self):
         auth = NoAuthenticator()
 
-        reader = Mock()
-        writer = AsyncMock()
+        reader = AsyncMock(Reader)
+        writer = AsyncMock(Writer)
 
         assert await auth.authenticate(reader, writer) is None
 
@@ -28,8 +28,8 @@ class TestNoAuthenticator:
 
 class TestHMACAuthenticator:
     def setup_method(self):
-        self.reader = Mock(Reader)
-        self.writer = Mock(Writer)
+        self.reader = AsyncMock(Reader)
+        self.writer = AsyncMock(Writer)
 
         # To be sent to the client in response to their challenge
         self.hmac_to_client = (

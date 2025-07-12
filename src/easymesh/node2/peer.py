@@ -1,111 +1,20 @@
-from asyncio import Lock, StreamReader, StreamWriter, open_connection, open_unix_connection
+from asyncio import Lock
 from collections.abc import Iterable
-from typing import NamedTuple, Protocol
+from typing import NamedTuple
 
-from easymesh.asyncio import Reader
+from easymesh.asyncio import (
+    LockableWriter,
+    Reader,
+    Writer,
+    open_connection,
+    open_unix_connection,
+)
 from easymesh.authentication import Authenticator
 from easymesh.network import get_hostname
 from easymesh.node2.loadbalancing import ServiceLoadBalancer, TopicLoadBalancer
 from easymesh.node2.topology import MeshTopologyManager
 from easymesh.specs import ConnectionSpec, IpConnectionSpec, MeshNodeSpec, NodeId, UnixConnectionSpec
-from easymesh.types import Buffer, Host, Service, Topic
-
-
-# TODO move this
-class Writer(Protocol):
-    async def write(self, data: bytes) -> None:
-        ...
-
-    async def drain(self) -> None:
-        ...
-
-    async def close(self) -> None:
-        ...
-
-    async def wait_closed(self) -> None:
-        ...
-
-    def get_extra_info(self, name: str, default=None):
-        ...
-
-
-# TODO move this
-class FullyAsyncStreamWriter(Writer):
-    def __init__(self, writer: StreamWriter):
-        self.writer = writer
-
-    async def write(self, data: bytes) -> None:
-        self.writer.write(data)
-
-    async def drain(self) -> None:
-        await self.writer.drain()
-
-    async def close(self) -> None:
-        self.writer.close()
-
-    async def wait_closed(self) -> None:
-        await self.writer.wait_closed()
-
-    def get_extra_info(self, name: str, default=None):
-        return self.writer.get_extra_info(name, default)
-
-
-# TODO move this
-class BufferWriter(bytearray, Buffer, Writer):
-    async def write(self, data: bytes) -> None:
-        self.extend(data)
-
-    async def drain(self) -> None:
-        pass
-
-    async def close(self) -> None:
-        pass
-
-    async def wait_closed(self) -> None:
-        pass
-
-    def get_extra_info(self, name: str, default=None):
-        raise NotImplementedError()
-
-
-# TODO move this
-class LockableWriter(Writer):
-    def __init__(self, writer: Writer, lock: Lock = None):
-        self.writer = writer
-        self._lock = lock or Lock()
-
-    @property
-    def lock(self) -> Lock:
-        return self._lock
-
-    async def __aenter__(self) -> 'LockableWriter':
-        await self.lock.acquire()
-        return self
-
-    async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
-        self._lock.release()
-
-    async def write(self, data: bytes) -> None:
-        self.require_locked()
-        await self.writer.write(data)
-
-    async def drain(self) -> None:
-        self.require_locked()
-        await self.writer.drain()
-
-    async def close(self) -> None:
-        self.require_locked()
-        await self.writer.close()
-
-    async def wait_closed(self) -> None:
-        await self.writer.wait_closed()
-
-    def get_extra_info(self, name: str, default=None):
-        return self.writer.get_extra_info(name, default)
-
-    def require_locked(self) -> None:
-        if not self._lock.locked():
-            raise RuntimeError('Writer must be locked before writing')
+from easymesh.types import Host, Service, Topic
 
 
 class PeerConnection(NamedTuple):
@@ -137,14 +46,11 @@ class PeerConnectionBuilder:
             raise ConnectionError('Could not connect to any connection spec')
 
         reader, writer = reader_writer
-        # TODO make authenticators use the new writer interface
         await self.authenticator.authenticate(reader, writer)
-
-        writer = FullyAsyncStreamWriter(writer)
 
         return reader, writer
 
-    async def _get_connection(self, conn_spec: ConnectionSpec) -> tuple[StreamReader, StreamWriter] | None:
+    async def _get_connection(self, conn_spec: ConnectionSpec) -> tuple[Reader, Writer] | None:
         if isinstance(conn_spec, IpConnectionSpec):
             return await open_connection(
                 host=conn_spec.host,

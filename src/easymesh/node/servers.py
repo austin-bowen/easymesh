@@ -6,8 +6,7 @@ from asyncio import Server, StreamReader, StreamWriter
 from collections.abc import Awaitable, Callable
 from typing import Optional
 
-from easymesh.asyncio import Reader
-from easymesh.node2.peer import FullyAsyncStreamWriter, Writer
+from easymesh.asyncio import FullyAsyncStreamWriter, Reader, Writer
 from easymesh.specs import ConnectionSpec, IpConnectionSpec, UnixConnectionSpec
 from easymesh.types import Host, Port, ServerHost
 

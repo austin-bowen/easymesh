@@ -3,7 +3,7 @@ from unittest.mock import AsyncMock, call
 
 import pytest
 
-from easymesh.asyncio import Reader
+from easymesh.asyncio import Reader, Writer
 from easymesh.codec2 import (
     Codec,
     FixedLengthIntCodec,
@@ -15,7 +15,6 @@ from easymesh.codec2 import (
     ServiceResponseCodec,
     TopicMessageCodec,
 )
-from easymesh.node2.peer import Writer
 from easymesh.types import Message, ServiceRequest, ServiceResponse
 
 

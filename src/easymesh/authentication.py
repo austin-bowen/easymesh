@@ -51,14 +51,14 @@ class HMACAuthenticator(Authenticator):
     async def authenticate(self, reader: Reader, writer: Writer) -> None:
         challenge_to_client = self.get_random_bytes(self.challenge_length)
 
-        writer.write(challenge_to_client)
+        await writer.write(challenge_to_client)
         await writer.drain()
 
         challenge_from_client = await self._read_exactly(reader, self.challenge_length)
 
         hmac_to_client = self._hmac_digest(challenge_from_client)
 
-        writer.write(hmac_to_client)
+        await writer.write(hmac_to_client)
         await writer.drain()
 
         expected_hmac = self._hmac_digest(challenge_to_client)

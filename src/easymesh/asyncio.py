@@ -1,8 +1,10 @@
 import asyncio
 import traceback
-from asyncio import Lock, Task
+from asyncio import Lock, StreamWriter, Task
 from collections.abc import Awaitable, Iterable, Sized
 from typing import Protocol, Type, TypeVar, Union
+
+from easymesh.types import Host, Port
 
 T = TypeVar('T')
 E = TypeVar('E', bound=BaseException)
@@ -11,7 +13,7 @@ E = TypeVar('E', bound=BaseException)
 async def close_ignoring_errors(writer: 'Writer') -> None:
     """Closes the writer ignoring any ConnectionErrors."""
     try:
-        writer.close()
+        await writer.close()
         await writer.wait_closed()
     except ConnectionError:
         pass
@@ -90,6 +92,22 @@ def noop():
     return asyncio.sleep(0)
 
 
+async def open_connection(
+        host: Host = None,
+        port: Port = None,
+        **kwargs,
+) -> tuple['Reader', 'Writer']:
+    reader, writer = await asyncio.open_connection(host, port, **kwargs)
+    writer = FullyAsyncStreamWriter(writer)
+    return reader, writer
+
+
+async def open_unix_connection(path: str = None, **kwargs) -> tuple['Reader', 'Writer']:
+    reader, writer = await asyncio.open_unix_connection(path, **kwargs)
+    writer = FullyAsyncStreamWriter(writer)
+    return reader, writer
+
+
 class Reader(Protocol):
     async def readexactly(self, n: int) -> bytes:
         ...
@@ -99,17 +117,40 @@ class Reader(Protocol):
 
 
 class Writer(Protocol):
-    def write(self, data: bytes) -> None:
+    async def write(self, data: bytes) -> None:
         ...
 
     async def drain(self) -> None:
         ...
 
-    def close(self) -> None:
+    async def close(self) -> None:
         ...
 
     async def wait_closed(self) -> None:
         ...
+
+    def get_extra_info(self, name: str, default=None):
+        ...
+
+
+class FullyAsyncStreamWriter(Writer):
+    def __init__(self, writer: StreamWriter):
+        self.writer = writer
+
+    async def write(self, data: bytes) -> None:
+        self.writer.write(data)
+
+    async def drain(self) -> None:
+        await self.writer.drain()
+
+    async def close(self) -> None:
+        self.writer.close()
+
+    async def wait_closed(self) -> None:
+        await self.writer.wait_closed()
+
+    def get_extra_info(self, name: str, default=None):
+        return self.writer.get_extra_info(name, default)
 
 
 class LockableWriter(Writer):
@@ -126,39 +167,47 @@ class LockableWriter(Writer):
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
-        self.lock.release()
+        self._lock.release()
 
-    def write(self, data: bytes) -> None:
-        assert self.lock.locked()
-        self.writer.write(data)
+    async def write(self, data: bytes) -> None:
+        self.require_locked()
+        await self.writer.write(data)
 
     async def drain(self) -> None:
-        assert self.lock.locked()
+        self.require_locked()
         await self.writer.drain()
 
-    def close(self) -> None:
-        assert self.lock.locked()
-        self.writer.close()
+    async def close(self) -> None:
+        self.require_locked()
+        await self.writer.close()
 
     async def wait_closed(self) -> None:
         await self.writer.wait_closed()
 
+    def get_extra_info(self, name: str, default=None):
+        return self.writer.get_extra_info(name, default)
 
+    def require_locked(self) -> None:
+        if not self._lock.locked():
+            raise RuntimeError('Writer must be locked before writing')
+
+
+# TODO remove this
 class MultiWriter(Writer):
     def __init__(self, writers: Iterable[Writer]):
         self.writers = writers
 
-    def write(self, data: bytes) -> None:
+    async def write(self, data: bytes) -> None:
         for writer in self.writers:
-            writer.write(data)
+            await writer.write(data)
 
     async def drain(self) -> None:
         for writer in self.writers:
             await writer.drain()
 
-    def close(self) -> None:
+    async def close(self) -> None:
         for writer in self.writers:
-            writer.close()
+            await writer.close()
 
     async def wait_closed(self) -> None:
         for writer in self.writers:

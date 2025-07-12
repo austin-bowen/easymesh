@@ -1,6 +1,6 @@
 import logging
 
-from easymesh.asyncio import Reader
+from easymesh.asyncio import Reader, Writer
 from easymesh.authentication import Authenticator, optional_authkey_authenticator
 from easymesh.codec import Codec, pickle_codec
 from easymesh.codec2 import (
@@ -16,7 +16,7 @@ from easymesh.coordinator.constants import DEFAULT_COORDINATOR_PORT
 from easymesh.network import get_lan_hostname
 from easymesh.node.servers import PortScanTcpServerProvider, ServerProvider, ServersManager, TmpUnixServerProvider
 from easymesh.node2.loadbalancing import RoundRobinLoadBalancer, ServiceLoadBalancer, TopicLoadBalancer
-from easymesh.node2.peer import PeerConnectionBuilder, PeerConnectionManager, PeerSelector, Writer
+from easymesh.node2.peer import PeerConnectionBuilder, PeerConnectionManager, PeerSelector
 from easymesh.node2.service import ServiceCaller
 from easymesh.node2.topic import TopicListenerCallback, TopicListenerManager, TopicSender
 from easymesh.node2.topology import MeshTopologyManager, get_removed_nodes

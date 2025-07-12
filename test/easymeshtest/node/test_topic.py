@@ -3,7 +3,8 @@ from unittest.mock import AsyncMock
 import pytest
 
 from easymesh.codec2 import NodeMessageCodec
-from easymesh.node2.peer import LockableWriter, PeerConnection, PeerConnectionManager, PeerSelector
+from easymesh.node2.peer import PeerConnection, PeerConnectionManager, PeerSelector
+from easymesh.asyncio import LockableWriter
 from easymesh.node2.topic import TopicSender
 from easymesh.specs import MeshNodeSpec
 
