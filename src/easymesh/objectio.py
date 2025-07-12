@@ -1,9 +1,9 @@
-from abc import abstractmethod
-from asyncio import Lock, StreamReader
+from abc import ABC, abstractmethod
+from asyncio import Lock
 from dataclasses import dataclass
 from typing import Generic, Literal, TypeVar
 
-from easymesh.asyncio import Writer
+from easymesh.asyncio import Reader, Writer
 from easymesh.codec import Codec, pickle_codec
 from easymesh.types import Data, Message
 from easymesh.utils import require
@@ -18,7 +18,7 @@ DEFAULT_MAX_HEADER_LEN: int = 8
 T = TypeVar('T')
 
 
-class ObjectReader(Generic[T]):
+class ObjectReader(Generic[T], ABC):
     def __aiter__(self):
         return self
 
@@ -30,7 +30,7 @@ class ObjectReader(Generic[T]):
         ...
 
 
-class ObjectWriter(Generic[T]):
+class ObjectWriter(Generic[T], ABC):
     @abstractmethod
     async def write(self, obj: T) -> None:
         ...
@@ -45,7 +45,7 @@ class ObjectIO(Generic[T]):
 class StreamObjectReader(ObjectReader[T]):
     def __init__(
             self,
-            reader: StreamReader,
+            reader: Reader,
             byte_order: ByteOrder,
             max_header_len: int,
     ):
@@ -83,7 +83,7 @@ class StreamObjectReader(ObjectReader[T]):
         return int.from_bytes(data, byteorder=self.byte_order, signed=False)
 
 
-class StreamObjectWriter(ObjectWriter[T]):
+class StreamObjectWriter(ObjectWriter[T], ABC):
     def __init__(
             self,
             writer: Writer,
@@ -107,7 +107,7 @@ class StreamObjectWriter(ObjectWriter[T]):
     async def _write(self, obj: T) -> None:
         ...
 
-    def _write_data_with_len_header(self, data: bytes) -> None:
+    async def _write_data_with_len_header(self, data: bytes) -> None:
         data_len = len(data)
 
         header_len = (data_len.bit_length() + 7) // 8
@@ -117,15 +117,15 @@ class StreamObjectWriter(ObjectWriter[T]):
             f'Computed header_len={header_len} > max_header_len={self.max_header_len}',
         )
 
-        self.writer.write(self._int_to_bytes(header_len, length=1))
+        await self.writer.write(self._int_to_bytes(header_len, length=1))
 
         if not data_len:
             return
 
         header = self._int_to_bytes(data_len, length=header_len)
 
-        self.writer.write(header)
-        self.writer.write(data)
+        await self.writer.write(header)
+        await self.writer.write(data)
 
     def _int_to_bytes(self, value: int, length: int) -> bytes:
         return value.to_bytes(length, byteorder=self.byte_order, signed=False)
@@ -134,7 +134,7 @@ class StreamObjectWriter(ObjectWriter[T]):
 class CodecObjectReader(StreamObjectReader[T]):
     def __init__(
             self,
-            reader: StreamReader,
+            reader: Reader,
             codec: Codec[T] = pickle_codec,
             byte_order: ByteOrder = DEFAULT_BYTE_ORDER,
             max_header_len: int = DEFAULT_MAX_HEADER_LEN,
@@ -160,13 +160,13 @@ class CodecObjectWriter(StreamObjectWriter[T]):
 
     async def _write(self, obj: T) -> None:
         data = self.codec.encode(obj)
-        self._write_data_with_len_header(data)
+        await self._write_data_with_len_header(data)
 
 
 class MessageReader(StreamObjectReader[Message]):
     def __init__(
             self,
-            reader: StreamReader,
+            reader: Reader,
             codec: Codec[Data],
             topic_encoding: str = DEFAULT_TOPIC_ENCODING,
             byte_order: ByteOrder = DEFAULT_BYTE_ORDER,
@@ -201,7 +201,7 @@ class MessageWriter(StreamObjectWriter[Message]):
 
     async def _write(self, message: Message) -> None:
         topic = message.topic.encode(self.topic_encoding)
-        self._write_data_with_len_header(topic)
+        await self._write_data_with_len_header(topic)
 
         data = self.codec.encode(message.data) if message.data is not None else b''
-        self._write_data_with_len_header(data)
+        await self._write_data_with_len_header(data)

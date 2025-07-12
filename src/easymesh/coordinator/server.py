@@ -4,7 +4,7 @@ from asyncio import StreamReader
 from codecs import StreamWriter
 from typing import Optional
 
-from easymesh.asyncio import close_ignoring_errors, many
+from easymesh.asyncio import FullyAsyncStreamWriter, close_ignoring_errors, many
 from easymesh.authentication import AuthKey, Authenticator, optional_authkey_authenticator
 from easymesh.coordinator.constants import DEFAULT_COORDINATOR_HOST, DEFAULT_COORDINATOR_PORT
 from easymesh.objectio import (
@@ -44,6 +44,8 @@ class RPCMeshCoordinatorServer(MeshCoordinatorServer):
         server = await self.start_stream_server(self._handle_connection)
 
     async def _handle_connection(self, reader: StreamReader, writer: StreamWriter) -> None:
+        writer = FullyAsyncStreamWriter(writer)
+
         peer_name = writer.get_extra_info('peername') or writer.get_extra_info('sockname')
         print(f'New connection from: {peer_name}')
 

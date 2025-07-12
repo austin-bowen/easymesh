@@ -1,15 +1,16 @@
 import logging
 
-from easymesh.asyncio import Reader, Writer
+from easymesh.asyncio import Reader, Writer, close_ignoring_errors
 from easymesh.authentication import Authenticator, optional_authkey_authenticator
-from easymesh.codec import Codec, pickle_codec
 from easymesh.codec2 import (
+    Codec,
     FixedLengthIntCodec,
     LengthPrefixedStringCodec,
     NodeMessageCodec,
     ServiceRequestCodec,
     ServiceResponseCodec,
     TopicMessageCodec,
+    pickle_codec,
 )
 from easymesh.coordinator.client import MeshCoordinatorClient, build_coordinator_client
 from easymesh.coordinator.constants import DEFAULT_COORDINATOR_PORT
@@ -67,7 +68,7 @@ class Node:
     async def send(self, topic: Topic, data: Data = None) -> None:
         await self.topic_sender.send(topic, data)
 
-    async def add_listener(
+    async def listen(
             self,
             topic: Topic,
             callback: TopicListenerCallback,
@@ -75,7 +76,7 @@ class Node:
         self.topic_listener_manager.set_listener(topic, callback)
         await self.register()
 
-    async def remove_listener(self, topic: Topic) -> None:
+    async def stop_listening(self, topic: Topic) -> None:
         callback = self.topic_listener_manager.remove_listener(topic)
 
         if callback is not None:
@@ -132,7 +133,16 @@ class ClientHandler:
         logger.debug(f'New connection from: {peer_name}')
 
         while True:
-            message = await self.node_message_codec.decode_topic_message_or_service_request(reader)
+            try:
+                message = await self.node_message_codec.decode_topic_message_or_service_request(reader)
+            except EOFError:
+                logger.debug(f'Closed connection from: {peer_name}')
+                await close_ignoring_errors(writer)
+                return
+            except Exception as e:
+                logger.exception(f'Error reading from peer={peer_name}', exc_info=e)
+                await close_ignoring_errors(writer)
+                return
 
             if isinstance(message, Message):
                 await self._handle_topic_message(message)
@@ -171,6 +181,7 @@ async def build_node(
         service_load_balancer: ServiceLoadBalancer = None,
         authkey: bytes = None,
         authenticator: Authenticator = None,
+        start: bool = True,
 ) -> Node:
     authenticator = authenticator or optional_authkey_authenticator(authkey)
 
@@ -216,7 +227,7 @@ async def build_node(
         max_request_ids=2 ** (8 * 2),  # Codec uses 2 bytes for request ID
     )
 
-    return Node(
+    node = Node(
         id=NodeId(name),
         coordinator_client=coordinator_client,
         servers_manager=servers_manager,
@@ -227,6 +238,11 @@ async def build_node(
         topic_listener_manager=topic_listener_manager,
         service_caller=service_caller,
     )
+
+    if start:
+        await node.start()
+
+    return node
 
 
 def build_server_providers(

@@ -1,5 +1,5 @@
 import asyncio
-from abc import abstractmethod
+from abc import ABC, abstractmethod
 from asyncio import Event
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
@@ -36,7 +36,7 @@ class PendingResponse:
     received: Event = field(default_factory=Event)
 
 
-class RPC:
+class RPC(ABC):
     request_handler: RequestHandler = None
     message_handler: MessageHandler = None
 
