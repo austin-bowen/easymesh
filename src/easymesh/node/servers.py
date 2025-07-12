@@ -1,18 +1,26 @@
 import asyncio
+import logging
 import tempfile
-from abc import abstractmethod
-from asyncio import Server
+from abc import ABC, abstractmethod
+from asyncio import Server, StreamReader, StreamWriter
+from collections.abc import Awaitable, Callable
 from typing import Optional
 
+from easymesh.asyncio import Reader
+from easymesh.node2.peer import FullyAsyncStreamWriter, Writer
 from easymesh.specs import ConnectionSpec, IpConnectionSpec, UnixConnectionSpec
 from easymesh.types import Host, Port, ServerHost
 
+ClientConnectedCallback = Callable[[Reader, Writer], Awaitable[None]]
 
-class ServerProvider:
+logger = logging.getLogger(__name__)
+
+
+class ServerProvider(ABC):
     @abstractmethod
     async def start_server(
             self,
-            client_connected_cb,
+            client_connected_cb: ClientConnectedCallback,
     ) -> tuple[Server, ConnectionSpec]:
         """Raises ``UnsupportedProviderError`` if not supported on the system."""
         ...
@@ -56,8 +64,9 @@ class PortScanTcpServerProvider(ServerProvider):
 
     async def start_server(
             self,
-            client_connected_cb,
+            client_connected_cb: ClientConnectedCallback,
     ) -> tuple[Server, ConnectionSpec]:
+        client_connected_cb = _wrap_callback(client_connected_cb)
         last_error = None
 
         for port in range(self.start_port, self.end_port + 1):
@@ -112,8 +121,10 @@ class TmpUnixServerProvider(ServerProvider):
 
     async def start_server(
             self,
-            client_connected_cb,
+            client_connected_cb: ClientConnectedCallback,
     ) -> tuple[Server, ConnectionSpec]:
+        client_connected_cb = _wrap_callback(client_connected_cb)
+
         with tempfile.NamedTemporaryFile(
                 prefix=self.prefix,
                 suffix=self.suffix,
@@ -131,6 +142,36 @@ class TmpUnixServerProvider(ServerProvider):
         return server, conn_spec
 
 
+class ServersManager:
+    def __init__(self, server_providers: list[ServerProvider]):
+        self.server_providers = server_providers
+
+        self._connection_specs: list[ConnectionSpec] = []
+
+    @property
+    def connection_specs(self) -> list[ConnectionSpec]:
+        return list(self._connection_specs)
+
+    async def start_servers(
+            self,
+            client_connected_cb: ClientConnectedCallback,
+    ) -> None:
+        if self._connection_specs:
+            raise RuntimeError('Servers have already been started.')
+
+        for provider in self.server_providers:
+            try:
+                server, connection_spec = await provider.start_server(client_connected_cb)
+            except UnsupportedProviderError as e:
+                logger.exception(f'Failed to start server using provider={provider}', exc_info=e)
+            else:
+                logger.debug(f'Started node server with connection_spec={connection_spec}')
+                self._connection_specs.append(connection_spec)
+
+        if not self._connection_specs:
+            raise RuntimeError('Unable to start any server with the given server providers.')
+
+
 class UnsupportedProviderError(Exception):
     """Raised when trying to start a server from an unsupported server provider."""
 
@@ -138,3 +179,13 @@ class UnsupportedProviderError(Exception):
         super().__init__(
             f'Unsupported server provider {provider.__class__}: {message}'
         )
+
+
+def _wrap_callback(
+        callback: ClientConnectedCallback,
+) -> Callable[[StreamReader, StreamWriter], Awaitable[None]]:
+    async def wrapped_callback(reader: StreamReader, writer: StreamWriter) -> None:
+        writer = FullyAsyncStreamWriter(writer)
+        await callback(reader, writer)
+
+    return wrapped_callback

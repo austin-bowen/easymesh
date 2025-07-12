@@ -6,21 +6,21 @@ class TestMeshTopologyManager:
     def setup_method(self):
         self.node1 = MeshNodeSpec(
             id=NodeId('node1'),
-            connections=[],
+            connection_specs=[],
             topics={'topic1', 'topic2'},
             services=set(),
         )
 
         self.node2 = MeshNodeSpec(
             id=NodeId('node2'),
-            connections=[],
+            connection_specs=[],
             topics={'topic1', 'topic3'},
             services={'service1', 'service2'},
         )
 
         self.node3 = MeshNodeSpec(
             id=NodeId('node3'),
-            connections=[],
+            connection_specs=[],
             topics=set(),
             services={'service1', 'service3'},
         )
@@ -85,7 +85,7 @@ class TestGetRemovedNodes:
 def mesh_node_spec(name: str) -> MeshNodeSpec:
     return MeshNodeSpec(
         id=NodeId(name),
-        connections=[],
+        connection_specs=[],
         topics=set(),
         services=set(),
     )

@@ -1,5 +1,6 @@
 import logging
 
+from easymesh.asyncio import Reader
 from easymesh.authentication import Authenticator, optional_authkey_authenticator
 from easymesh.codec import Codec, pickle_codec
 from easymesh.codec2 import (
@@ -11,14 +12,16 @@ from easymesh.codec2 import (
     TopicMessageCodec,
 )
 from easymesh.coordinator.client import MeshCoordinatorClient
+from easymesh.network import get_lan_hostname
+from easymesh.node.servers import PortScanTcpServerProvider, ServerProvider, ServersManager, TmpUnixServerProvider
 from easymesh.node2.loadbalancing import RoundRobinLoadBalancer, ServiceLoadBalancer, TopicLoadBalancer
-from easymesh.node2.peer import PeerConnectionBuilder, PeerConnectionManager, PeerSelector
+from easymesh.node2.peer import PeerConnectionBuilder, PeerConnectionManager, PeerSelector, Writer
 from easymesh.node2.service import ServiceCaller
 from easymesh.node2.topic import TopicListenerCallback, TopicListenerManager, TopicSender
 from easymesh.node2.topology import MeshTopologyManager, get_removed_nodes
 from easymesh.reqres import MeshTopologyBroadcast
 from easymesh.specs import MeshNodeSpec, NodeId
-from easymesh.types import Data, Service, Topic
+from easymesh.types import Data, Host, ServerHost, Service, Topic
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +31,7 @@ class Node:
             self,
             id: NodeId,
             coordinator_client: MeshCoordinatorClient,
+            servers_manager: ServersManager,
             topology_manager: MeshTopologyManager,
             connection_manager: PeerConnectionManager,
             topic_sender: TopicSender,
@@ -36,6 +40,7 @@ class Node:
     ):
         self._id = id
         self.coordinator_client = coordinator_client
+        self.servers_manager = servers_manager
         self.topology_manager = topology_manager
         self.connection_manager = connection_manager
         self.topic_sender = topic_sender
@@ -47,6 +52,20 @@ class Node:
     @property
     def id(self) -> NodeId:
         return self._id
+
+    async def start(self) -> None:
+        logger.info(f'Starting node {self.id}')
+
+        logger.debug('Starting servers')
+        await self.servers_manager.start_servers(self._handle_client_connected)
+
+        await self.register()
+
+    async def _handle_client_connected(self, reader: Reader, writer: Writer) -> None:
+        peer_name = writer.get_extra_info('peername') or writer.get_extra_info('sockname')
+        logger.debug(f'New connection from: {peer_name}')
+
+        # TODO
 
     async def send(self, topic: Topic, data: Data = None) -> None:
         await self.topic_sender.send(topic, data)
@@ -82,7 +101,7 @@ class Node:
     def _build_node_spec(self) -> MeshNodeSpec:
         return MeshNodeSpec(
             id=self.id,
-            connections=...,  # TODO
+            connection_specs=self.servers_manager.connection_specs,
             topics=self.topic_listener_manager.topics,
             services=set(),  # TODO
         )
@@ -107,12 +126,24 @@ class Node:
 
 async def build_node(
         name: str,
+        allow_unix_connections: bool = True,
+        allow_tcp_connections: bool = True,
+        node_server_host: ServerHost = None,
+        node_client_host: Host = None,
         data_codec: Codec[Data] = pickle_codec,
         topic_load_balancer: TopicLoadBalancer = None,
         service_load_balancer: ServiceLoadBalancer = None,
         authkey: bytes = None,
         authenticator: Authenticator = None,
 ) -> Node:
+    server_providers = build_server_providers(
+        allow_unix_connections,
+        allow_tcp_connections,
+        node_server_host,
+        node_client_host,
+    )
+    servers_manager = ServersManager(server_providers)
+
     topology_manager = MeshTopologyManager()
 
     peer_selector = build_peer_selector(
@@ -139,12 +170,37 @@ async def build_node(
     return Node(
         id=NodeId(name),
         coordinator_client=...,  # TODO
+        servers_manager=servers_manager,
         topology_manager=topology_manager,
         connection_manager=connection_manager,
         topic_sender=topic_sender,
         topic_listener_manager=topic_listener_manager,
         service_caller=service_caller,
     )
+
+
+def build_server_providers(
+        allow_unix_connections: bool,
+        allow_tcp_connections: bool,
+        node_server_host: ServerHost | None,
+        node_client_host: Host | None,
+) -> list[ServerProvider]:
+    server_providers = []
+
+    if allow_unix_connections:
+        server_providers.append(TmpUnixServerProvider())
+
+    if allow_tcp_connections:
+        if not node_client_host:
+            node_client_host = get_lan_hostname()
+
+        provider = PortScanTcpServerProvider(node_server_host, node_client_host)
+        server_providers.append(provider)
+
+    if not server_providers:
+        raise ValueError('Must allow at least one type of connection')
+
+    return server_providers
 
 
 def build_peer_selector(

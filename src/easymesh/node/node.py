@@ -24,7 +24,7 @@ from easymesh.node.loadbalancing import (
     node_name_group_key,
 )
 from easymesh.node.peer import MeshPeer, PeerManager
-from easymesh.node.serverprovider import (
+from easymesh.node.servers import (
     PortScanTcpServerProvider,
     ServerProvider,
     TmpUnixServerProvider,
@@ -118,7 +118,7 @@ class MeshNode:
     async def _register_node(self) -> None:
         node_spec = MeshNodeSpec(
             id=self.id,
-            connections=self._connection_specs,
+            connection_specs=self._connection_specs,
             topics=self._listener_manager.get_topics(),
         )
 

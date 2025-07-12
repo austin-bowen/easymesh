@@ -39,7 +39,7 @@ class NodeId:
 @dataclass
 class MeshNodeSpec:
     id: NodeId
-    connections: list[ConnectionSpec]
+    connection_specs: list[ConnectionSpec]
     topics: set[Topic]
     services: set[Service]
 

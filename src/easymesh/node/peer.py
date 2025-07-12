@@ -71,7 +71,7 @@ class PeerWriterPool:
             return writer
 
         try:
-            writer = await self.writer_builder.build(peer_spec.connections)
+            writer = await self.writer_builder.build(peer_spec.connection_specs)
         except Exception as e:
             raise ConnectionError(f'Error connecting to {peer_spec.id}: {e!r}')
         else:
@@ -241,7 +241,7 @@ class PeerConnectionManager:
         if conn:
             return conn
 
-        conn = await self.conn_builder.build(peer_spec.connections)
+        conn = await self.conn_builder.build(peer_spec.connection_specs)
 
         self._connections[peer_spec.id] = conn
         return conn

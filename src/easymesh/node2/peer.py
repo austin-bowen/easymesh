@@ -25,6 +25,9 @@ class Writer(Protocol):
     async def wait_closed(self) -> None:
         ...
 
+    def get_extra_info(self, name: str, default=None):
+        ...
+
 
 # TODO move this
 class FullyAsyncStreamWriter(Writer):
@@ -43,6 +46,9 @@ class FullyAsyncStreamWriter(Writer):
     async def wait_closed(self) -> None:
         await self.writer.wait_closed()
 
+    def get_extra_info(self, name: str, default=None):
+        return self.writer.get_extra_info(name, default)
+
 
 # TODO move this
 class BufferWriter(bytearray, Buffer, Writer):
@@ -57,6 +63,9 @@ class BufferWriter(bytearray, Buffer, Writer):
 
     async def wait_closed(self) -> None:
         pass
+
+    def get_extra_info(self, name: str, default=None):
+        raise NotImplementedError()
 
 
 # TODO move this
@@ -90,6 +99,9 @@ class LockableWriter(Writer):
 
     async def wait_closed(self) -> None:
         await self.writer.wait_closed()
+
+    def get_extra_info(self, name: str, default=None):
+        return self.writer.get_extra_info(name, default)
 
     def require_locked(self) -> None:
         if not self._lock.locked():
@@ -160,7 +172,7 @@ class PeerConnectionManager:
             if connection:
                 return connection
 
-            reader, writer = await self.conn_builder.build(node.connections)
+            reader, writer = await self.conn_builder.build(node.connection_specs)
 
             reader = self._Reader(reader, self, node)
             writer = self._Writer(writer, self, node)
