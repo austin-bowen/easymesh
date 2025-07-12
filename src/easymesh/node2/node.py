@@ -11,7 +11,8 @@ from easymesh.codec2 import (
     ServiceResponseCodec,
     TopicMessageCodec,
 )
-from easymesh.coordinator.client import MeshCoordinatorClient
+from easymesh.coordinator.client import MeshCoordinatorClient, build_coordinator_client
+from easymesh.coordinator.constants import DEFAULT_COORDINATOR_PORT
 from easymesh.network import get_lan_hostname
 from easymesh.node.servers import PortScanTcpServerProvider, ServerProvider, ServersManager, TmpUnixServerProvider
 from easymesh.node2.loadbalancing import RoundRobinLoadBalancer, ServiceLoadBalancer, TopicLoadBalancer
@@ -21,7 +22,7 @@ from easymesh.node2.topic import TopicListenerCallback, TopicListenerManager, To
 from easymesh.node2.topology import MeshTopologyManager, get_removed_nodes
 from easymesh.reqres import MeshTopologyBroadcast
 from easymesh.specs import MeshNodeSpec, NodeId
-from easymesh.types import Data, Host, ServerHost, Service, Topic
+from easymesh.types import Data, Host, Port, ServerHost, Service, Topic
 
 logger = logging.getLogger(__name__)
 
@@ -126,6 +127,9 @@ class Node:
 
 async def build_node(
         name: str,
+        coordinator_host: Host = 'localhost',
+        coordinator_port: Port = DEFAULT_COORDINATOR_PORT,
+        coordinator_reconnect_timeout: float | None = 5.0,
         allow_unix_connections: bool = True,
         allow_tcp_connections: bool = True,
         node_server_host: ServerHost = None,
@@ -136,6 +140,15 @@ async def build_node(
         authkey: bytes = None,
         authenticator: Authenticator = None,
 ) -> Node:
+    authenticator = authenticator or optional_authkey_authenticator(authkey)
+
+    coordinator_client = await build_coordinator_client(
+        coordinator_host,
+        coordinator_port,
+        authenticator,
+        reconnect_timeout=coordinator_reconnect_timeout,
+    )
+
     server_providers = build_server_providers(
         allow_unix_connections,
         allow_tcp_connections,
@@ -152,7 +165,9 @@ async def build_node(
         service_load_balancer,
     )
 
-    connection_manager = build_peer_connection_manager(authkey, authenticator)
+    connection_manager = PeerConnectionManager(
+        PeerConnectionBuilder(authenticator),
+    )
 
     node_message_codec = build_node_message_codec(data_codec)
 
@@ -169,7 +184,7 @@ async def build_node(
 
     return Node(
         id=NodeId(name),
-        coordinator_client=...,  # TODO
+        coordinator_client=coordinator_client,
         servers_manager=servers_manager,
         topology_manager=topology_manager,
         connection_manager=connection_manager,
@@ -215,15 +230,6 @@ def build_peer_selector(
         topic_load_balancer=topic_load_balancer or round_robin_load_balancer,
         service_load_balancer=service_load_balancer or round_robin_load_balancer,
     )
-
-
-def build_peer_connection_manager(
-        authkey: bytes = None,
-        authenticator: Authenticator = None,
-) -> PeerConnectionManager:
-    authenticator = authenticator or optional_authkey_authenticator(authkey)
-    connection_builder = PeerConnectionBuilder(authenticator)
-    return PeerConnectionManager(connection_builder)
 
 
 def build_node_message_codec(
