@@ -1,4 +1,7 @@
+import asyncio
 import logging
+from functools import wraps
+from typing import NamedTuple
 
 from easymesh.asyncio import Reader, Writer, close_ignoring_errors
 from easymesh.authentication import Authenticator, optional_authkey_authenticator
@@ -87,6 +90,68 @@ class Node:
         else:
             logger.warning(f"Attempted to remove non-existing listener for topic={topic!r}")
 
+    async def topic_has_listeners(self, topic: Topic) -> bool:
+        listeners = self.topology_manager.get_nodes_listening_to_topic(topic)
+        return bool(listeners)
+
+    async def wait_for_listener(self, topic: Topic, poll_interval: float = 1.) -> None:
+        """
+        Wait until there is a listener for a topic.
+
+        Useful for send-only nodes to avoid doing unnecessary work when there
+        are no listeners for a topic.
+
+        Combine this with ``depends_on_listener`` in intermediate nodes to make all
+        nodes in a chain wait until there is a listener at the end of the chain.
+        """
+
+        while not await self.topic_has_listeners(topic):
+            await asyncio.sleep(poll_interval)
+
+    def depends_on_listener(self, downstream_topic: Topic, poll_interval: float = 1.):
+        """
+        Decorator for callback functions that send messages to a downstream
+        topic. If there is no listener for the downstream topic, then the node
+        will stop listening to the upstream topic until there is a listener for
+        the downstream topic.
+
+        Useful for nodes that do intermediate processing, i.e. nodes that
+        receive a message on a topic, process it, and then send the result on
+        another topic.
+
+        Example:
+            @node.depends_on_listener('bar')
+            async def handle_foo(topic, data):
+                await node.send('bar', data)
+
+            await node.listen('foo', handle_foo)
+
+        Combine this with ``wait_for_listener`` in send-only nodes to make all
+        nodes in a chain wait until there is a listener at the end of the chain.
+        """
+
+        def decorator(callback):
+            @wraps(callback)
+            async def wrapper(topic: Topic, data: Data) -> None:
+                if await self.topic_has_listeners(downstream_topic):
+                    await callback(topic, data)
+                    return
+
+                await self.stop_listening(topic)
+
+                async def wait_for_listener_then_listen():
+                    await self.wait_for_listener(downstream_topic, poll_interval)
+                    await self.listen(topic, wrapper)
+
+                asyncio.create_task(wait_for_listener_then_listen())
+
+            return wrapper
+
+        return decorator
+
+    def get_topic(self, topic: Topic) -> 'TopicProxy':
+        return TopicProxy(self, topic)
+
     async def request(self, service: Service, data: Data = None) -> Data:
         return await self.service_caller.request(service, data)
 
@@ -171,6 +236,23 @@ class ClientHandler:
     async def _handle_service_request(self, request: ServiceRequest) -> None:
         # TODO
         ...
+
+
+class TopicProxy(NamedTuple):
+    node: Node
+    topic: Topic
+
+    async def send(self, data: Data = None) -> None:
+        await self.node.send(self.topic, data)
+
+    async def has_listeners(self) -> bool:
+        return await self.node.topic_has_listeners(self.topic)
+
+    async def wait_for_listener(self, poll_interval: float = 1.) -> None:
+        await self.node.wait_for_listener(self.topic, poll_interval)
+
+    def depends_on_listener(self, poll_interval: float = 1.):
+        return self.node.depends_on_listener(self.topic, poll_interval)
 
 
 async def build_node(
