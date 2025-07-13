@@ -6,8 +6,6 @@ from easymesh.argparse import get_node_arg_parser
 from easymesh.asyncio import forever
 from easymesh.node2.node import build_node_from_args
 
-logging.basicConfig(level=logging.INFO)
-
 
 async def main(args: Namespace):
     logging.basicConfig(level=args.log)
