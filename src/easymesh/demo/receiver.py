@@ -3,7 +3,6 @@ import logging
 from argparse import Namespace
 
 from easymesh.argparse import get_node_arg_parser
-from easymesh.asyncio import forever
 from easymesh.node2.node import build_node_from_args
 
 
@@ -19,7 +18,7 @@ async def main(args: Namespace):
         await node.listen(topic, handle_message)
 
     print(f'Listening to topics: {args.topics}')
-    await forever()
+    await node.forever()
 
 
 def parse_args() -> Namespace:

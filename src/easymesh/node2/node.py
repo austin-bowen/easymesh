@@ -5,7 +5,7 @@ from functools import wraps
 from typing import NamedTuple
 
 from easymesh.argparse import get_node_arg_parser
-from easymesh.asyncio import Reader, Writer, close_ignoring_errors
+from easymesh.asyncio import Reader, Writer, close_ignoring_errors, forever
 from easymesh.authentication import Authenticator, optional_authkey_authenticator
 from easymesh.codec2 import (
     Codec,
@@ -190,6 +190,13 @@ class Node:
 
         for node in removed_nodes:
             await self.connection_manager.close_connection(node)
+
+    async def forever(self) -> None:
+        """
+        Does nothing forever. Convenience method to prevent your main function
+        from exiting while the node is running.
+        """
+        await forever()
 
 
 class ClientHandler:
