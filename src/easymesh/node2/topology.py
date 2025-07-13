@@ -42,16 +42,10 @@ class MeshTopologyManager:
         self._service_nodes_cache = service_nodes
 
     def get_nodes_listening_to_topic(self, topic: Topic) -> list[MeshNodeSpec]:
-        return [
-            node for node in self.topology.nodes
-            if topic in node.topics
-        ]
+        return self._topic_nodes_cache[topic]
 
     def get_nodes_providing_service(self, service: str) -> list[MeshNodeSpec]:
-        return [
-            node for node in self.topology.nodes
-            if service in node.services
-        ]
+        return self._service_nodes_cache[service]
 
 
 def get_removed_nodes(

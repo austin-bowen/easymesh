@@ -37,13 +37,21 @@ class TestMeshTopologyManager:
     def test_topology_property(self):
         assert self.topology_manager.topology is self.topology
 
-    def test_get_nodes_listening_to_topic(self):
+    def test_get_nodes_listening_to_topic_returns_nodes(self):
         result = self.topology_manager.get_nodes_listening_to_topic('topic1')
         assert result == [self.node1, self.node2]
 
-    def test_get_nodes_providing_service(self):
+    def test_get_nodes_listening_to_topic_returns_empty_list_for_unknown_topic(self):
+        result = self.topology_manager.get_nodes_listening_to_topic('unknown_topic')
+        assert result == []
+
+    def test_get_nodes_providing_service_returns_nodes(self):
         result = self.topology_manager.get_nodes_providing_service('service1')
         assert result == [self.node2, self.node3]
+
+    def test_get_nodes_providing_service_returns_empty_list_for_unknown_service(self):
+        result = self.topology_manager.get_nodes_providing_service('unknown_service')
+        assert result == []
 
 
 class TestGetRemovedNodes:
