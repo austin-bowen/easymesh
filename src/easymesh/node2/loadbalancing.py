@@ -77,6 +77,9 @@ class GroupingTopicLoadBalancer(TopicLoadBalancer):
         self.load_balancer = load_balancer
 
     def choose_nodes(self, nodes: list[MeshNodeSpec], topic: Topic) -> list[MeshNodeSpec]:
+        if not nodes:
+            return []
+
         nodes = sorted(nodes, key=self.group_key)
         grouped_nodes = (list(group) for _, group in groupby(nodes, key=self.group_key))
         return list(chain.from_iterable(
@@ -92,7 +95,7 @@ class RandomLoadBalancer(TopicLoadBalancer, ServiceLoadBalancer):
         self.rng = rng or Random()
 
     def choose_nodes(self, nodes: list[MeshNodeSpec], topic: Topic) -> list[MeshNodeSpec]:
-        return [self.rng.choice(nodes)]
+        return [self.rng.choice(nodes)] if nodes else []
 
     def choose_node(self, nodes: list[MeshNodeSpec], service: Service) -> MeshNodeSpec | None:
         return self.rng.choice(nodes) if nodes else None
@@ -109,6 +112,9 @@ class RoundRobinLoadBalancer(TopicLoadBalancer, ServiceLoadBalancer):
         self._service_counter: dict[Service, int] = Counter()
 
     def choose_nodes(self, nodes: list[MeshNodeSpec], topic: Topic) -> list[MeshNodeSpec]:
+        if not nodes:
+            return []
+
         i = self._topic_counter[topic] % len(nodes)
         self._topic_counter[topic] += 1
         return [nodes[i]]
