@@ -23,20 +23,19 @@ Here are some simplified examples. See the linked files for the full code.
 import easymesh
 
 async def main():
-    node = await easymesh.build_mesh_node(name='sender')
+    node = await easymesh.build_node(name='sender')
     await node.send('some-topic', {'hello': 'world!'})
 ```
 
 [easymesh/demo/**receiver.py**](src/easymesh/demo/receiver.py):
 ```python
 import easymesh
-from easymesh.asyncio import forever
 
 async def main():
-    node = await easymesh.build_mesh_node(name='receiver')
+    node = await easymesh.build_node(name='receiver')
     await node.listen('some-topic', callback)
-    await forever()
-    
+    await node.forever()
+
 async def callback(topic, data):
     print(f'receiver got: topic={topic}; data={data}')
 ```
@@ -154,5 +153,5 @@ $ easymesh --authkey my-secret-key
 ```
 
 ```python
-node = await easymesh.build_mesh_node(name='my-node', authkey=b'my-secret-key')
+node = await easymesh.build_node(name='my-node', authkey=b'my-secret-key')
 ```
