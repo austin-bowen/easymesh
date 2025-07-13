@@ -23,7 +23,7 @@ from easymesh.network import get_lan_hostname
 from easymesh.node.servers import PortScanTcpServerProvider, ServerProvider, ServersManager, TmpUnixServerProvider
 from easymesh.node2.loadbalancing import RoundRobinLoadBalancer, ServiceLoadBalancer, TopicLoadBalancer
 from easymesh.node2.peer import PeerConnectionBuilder, PeerConnectionManager, PeerSelector
-from easymesh.node2.service import ServiceCaller
+from easymesh.node2.service import ServiceCaller, ServiceHandlerManager
 from easymesh.node2.topic import TopicListenerCallback, TopicListenerManager, TopicSender
 from easymesh.node2.topology import MeshTopologyManager, get_removed_nodes
 from easymesh.reqres import MeshTopologyBroadcast
@@ -45,6 +45,7 @@ class Node:
             topic_sender: TopicSender,
             topic_listener_manager: TopicListenerManager,
             service_caller: ServiceCaller,
+            service_handler_manager: ServiceHandlerManager,
     ):
         self._id = id
         self.coordinator_client = coordinator_client
@@ -55,6 +56,7 @@ class Node:
         self.topic_sender = topic_sender
         self.topic_listener_manager = topic_listener_manager
         self.service_caller = service_caller
+        self.service_handler_manager = service_handler_manager
 
         coordinator_client.set_broadcast_handler(self._handle_topology_broadcast)
 
@@ -168,7 +170,7 @@ class Node:
             id=self.id,
             connection_specs=self.servers_manager.connection_specs,
             topics=self.topic_listener_manager.topics,
-            services=set(),  # TODO
+            services=self.service_handler_manager.services,
         )
 
     async def _handle_topology_broadcast(self, broadcast: MeshTopologyBroadcast) -> None:
@@ -360,6 +362,8 @@ async def build_node(
         max_request_ids=2 ** (8 * 2),  # Codec uses 2 bytes for request ID
     )
 
+    service_handler_manager = ServiceHandlerManager()
+
     node = Node(
         id=NodeId(name),
         coordinator_client=coordinator_client,
@@ -370,6 +374,7 @@ async def build_node(
         topic_sender=topic_sender,
         topic_listener_manager=topic_listener_manager,
         service_caller=service_caller,
+        service_handler_manager=service_handler_manager,
     )
 
     if start:
