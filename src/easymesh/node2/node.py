@@ -1,8 +1,10 @@
 import asyncio
 import logging
+from argparse import Namespace
 from functools import wraps
 from typing import NamedTuple
 
+from easymesh.argparse import get_node_arg_parser
 from easymesh.asyncio import Reader, Writer, close_ignoring_errors
 from easymesh.authentication import Authenticator, optional_authkey_authenticator
 from easymesh.codec2 import (
@@ -255,6 +257,41 @@ class TopicProxy(NamedTuple):
         return self.node.depends_on_listener(self.topic, poll_interval)
 
 
+async def build_node_from_args(
+        default_node_name: str = None,
+        args: Namespace = None,
+        **kwargs,
+) -> Node:
+    """
+    Builds a node from command line arguments.
+
+    Args:
+        default_node_name:
+            Default node name. If not given, the argument is required.
+            Ignored if `args` is given.
+        args:
+            Arguments from an argument parser. If not given, an argument parser
+            is created using `get_node_arg_parser` and is used to parse args.
+            This is useful if you create your own argument parser.
+        kwargs:
+            Additional keyword arguments to pass to `build_mesh_node`.
+            These will override anything specified in `args`.
+    """
+
+    if args is None:
+        args = get_node_arg_parser(default_node_name).parse_args()
+
+    build_args = vars(args)
+
+    if hasattr(args, 'coordinator'):
+        build_args['coordinator_host'] = args.coordinator.host
+        build_args['coordinator_port'] = args.coordinator.port
+
+    build_args.update(kwargs)
+
+    return await build_node(**build_args)
+
+
 async def build_node(
         name: str,
         coordinator_host: Host = 'localhost',
@@ -270,6 +307,7 @@ async def build_node(
         authkey: bytes = None,
         authenticator: Authenticator = None,
         start: bool = True,
+        **kwargs,
 ) -> Node:
     authenticator = authenticator or optional_authkey_authenticator(authkey)
 

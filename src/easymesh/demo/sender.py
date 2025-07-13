@@ -1,24 +1,28 @@
 import asyncio
+import logging
 from argparse import Namespace
 
-from easymesh import build_mesh_node_from_args
 from easymesh.argparse import get_node_arg_parser
+from easymesh.node2.node import build_node_from_args
 
 
 async def main(args: Namespace):
-    node = await build_mesh_node_from_args(args=args)
+    logging.basicConfig(level=args.log)
 
-    topic_sender = node.get_topic_sender(args.topic)
+    node = await build_node_from_args(args=args)
+
+    topic = node.get_topic(args.topic)
 
     data = eval(args.data) if args.eval else args.data
 
+    if not args.no_wait:
+        print(f'Waiting for listeners on topic {args.topic!r}...')
+        await topic.wait_for_listener()
+
     while True:
-        node.log(f'Sending topic={args.topic!r} data={args.data!r}')
+        print(f'Sending topic={args.topic!r} data={args.data!r}')
 
-        if not await topic_sender.has_listeners():
-            node.log(f'WARNING: No listeners on topic {args.topic!r}.')
-
-        await topic_sender.send(data)
+        await topic.send(data)
 
         if args.interval < 0:
             return
@@ -54,6 +58,18 @@ def parse_args() -> Namespace:
         type=float,
         help='The interval in seconds to send messages. A value < 0 will '
              'cause the message to be sent only once. Default: %(default)s',
+    )
+
+    parser.add_argument(
+        '--no-wait',
+        action='store_true',
+        help='Send the message without waiting for any listeners',
+    )
+
+    parser.add_argument(
+        '--log',
+        default='INFO',
+        help='Log level; DEBUG, INFO, ERROR, etc. Default: %(default)s'
     )
 
     return parser.parse_args()
