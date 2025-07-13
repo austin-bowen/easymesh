@@ -22,7 +22,8 @@ class PeerConnection(NamedTuple):
     writer: LockableWriter
 
     async def close(self) -> None:
-        await self.writer.close()
+        async with self.writer:
+            await self.writer.close()
 
 
 class PeerConnectionBuilder:
@@ -91,8 +92,9 @@ class PeerConnectionManager:
     async def close_connection(self, node: MeshNodeSpec) -> None:
         async with self._connections_lock:
             connection = self._connections.pop(node.id, None)
-            if connection:
-                await connection.close()
+
+        if connection:
+            await connection.close()
 
     class _Managed:
         def __init__(self, manager: 'PeerConnectionManager', node: MeshNodeSpec):

@@ -57,6 +57,9 @@ class Node:
     def id(self) -> NodeId:
         return self._id
 
+    def __str__(self) -> str:
+        return str(self.id)
+
     async def start(self) -> None:
         logger.info(f'Starting node {self.id}')
 
@@ -111,7 +114,10 @@ class Node:
             old_topology=self.topology_manager.topology,
             new_topology=broadcast.mesh_topology,
         )
-        logger.debug(f'Removed nodes: {removed_nodes}')
+        logger.debug(
+            f'Removed {len(removed_nodes)} nodes: '
+            f'{[str(node.id) for node in removed_nodes]}'
+        )
 
         self.topology_manager.topology = broadcast.mesh_topology
 
