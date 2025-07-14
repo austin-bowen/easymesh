@@ -185,6 +185,13 @@ def _wrap_callback(
 ) -> Callable[[StreamReader, StreamWriter], Awaitable[None]]:
     async def wrapped_callback(reader: StreamReader, writer: StreamWriter) -> None:
         writer = FullyAsyncStreamWriter(writer)
-        await callback(reader, writer)
+
+        try:
+            await callback(reader, writer)
+        except Exception as e:
+            logger.exception('Error in client connected callback', exc_info=e)
+        finally:
+            await writer.close()
+            await writer.wait_closed()
 
     return wrapped_callback

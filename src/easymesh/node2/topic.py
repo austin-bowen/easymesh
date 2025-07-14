@@ -65,7 +65,7 @@ class TopicListenerManager:
         return topic in self._listeners
 
 
-class TopicReceiver:
+class TopicMessageHandler:
     def __init__(
             self,
             listener_manager: TopicListenerManager,

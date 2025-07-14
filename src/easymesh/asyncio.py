@@ -174,11 +174,9 @@ class LockableWriter(Writer):
         await self.writer.write(data)
 
     async def drain(self) -> None:
-        self.require_locked()
         await self.writer.drain()
 
     async def close(self) -> None:
-        self.require_locked()
         await self.writer.close()
 
     async def wait_closed(self) -> None:

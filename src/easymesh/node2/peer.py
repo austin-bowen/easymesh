@@ -1,5 +1,5 @@
 from asyncio import Lock
-from collections.abc import Iterable
+from collections.abc import Awaitable, Iterable
 from typing import NamedTuple
 
 from easymesh.asyncio import (
@@ -22,8 +22,8 @@ class PeerConnection(NamedTuple):
     writer: LockableWriter
 
     async def close(self) -> None:
-        async with self.writer:
-            await self.writer.close()
+        await self.writer.close()
+        await self.writer.wait_closed()
 
 
 class PeerConnectionBuilder:
@@ -101,9 +101,9 @@ class PeerConnectionManager:
             self.manager = manager
             self.node = node
 
-        async def _close_on_error(self, func, *args):
+        async def _close_on_error(self, awaitable: Awaitable):
             try:
-                return await func(*args)
+                return await awaitable
             except Exception:
                 await self.manager.close_connection(self.node)
                 raise
@@ -119,10 +119,14 @@ class PeerConnectionManager:
             self.reader = reader
 
         async def readexactly(self, n: int) -> bytes:
-            return await self._close_on_error(self.reader.readexactly, n)
+            return await self._close_on_error(
+                self.reader.readexactly(n)
+            )
 
         async def readuntil(self, separator: bytes) -> bytes:
-            return await self._close_on_error(self.reader.readuntil, separator)
+            return await self._close_on_error(
+                self.reader.readuntil(separator)
+            )
 
     class _Writer(_Managed, Writer):
         def __init__(
@@ -135,10 +139,14 @@ class PeerConnectionManager:
             self.writer = writer
 
         async def write(self, data: bytes) -> None:
-            await self._close_on_error(self.writer.write, data)
+            await self._close_on_error(
+                self.writer.write(data)
+            )
 
         async def drain(self) -> None:
-            await self._close_on_error(self.writer.drain)
+            await self._close_on_error(
+                self.writer.drain()
+            )
 
         async def close(self) -> None:
             await self.writer.close()
