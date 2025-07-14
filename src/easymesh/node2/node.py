@@ -27,7 +27,7 @@ from easymesh.node2.peer import PeerConnectionBuilder, PeerConnectionManager, Pe
 from easymesh.node2.service.caller import ServiceCaller
 from easymesh.node2.service.handlermanager import ServiceHandlerManager
 from easymesh.node2.service.types import ServiceRequest, ServiceResponse
-from easymesh.node2.topic import TopicListenerCallback, TopicListenerManager, TopicSender
+from easymesh.node2.topic import TopicListenerCallback, TopicListenerManager, TopicMessageHandler, TopicSender
 from easymesh.node2.topology import MeshTopologyManager, get_removed_nodes
 from easymesh.reqres import MeshTopologyBroadcast
 from easymesh.specs import MeshNodeSpec, NodeId
@@ -229,11 +229,11 @@ class ClientHandler:
     def __init__(
             self,
             node_message_codec: NodeMessageCodec,
-            topic_listener_manager: TopicListenerManager,
+            topic_message_handler: TopicMessageHandler,
             service_handler_manager: ServiceHandlerManager,
     ):
         self.node_message_codec = node_message_codec
-        self.topic_listener_manager = topic_listener_manager
+        self.topic_message_handler = topic_message_handler
         self.service_handler_manager = service_handler_manager
 
     async def handle_client(self, reader: Reader, writer: Writer) -> None:
@@ -257,7 +257,7 @@ class ClientHandler:
                 return
 
             if isinstance(message, Message):
-                await self._handle_topic_message(message)
+                await self.topic_message_handler.handle_message(message)
             elif isinstance(message, ServiceRequest):
                 asyncio.create_task(
                     self._handle_service_request(message, writer),
@@ -265,17 +265,6 @@ class ClientHandler:
                 )
             else:
                 raise RuntimeError('Unreachable code')
-
-    async def _handle_topic_message(self, message: Message) -> None:
-        listener = self.topic_listener_manager.get_listener(message.topic)
-
-        if listener:
-            await listener(message.topic, message.data)
-        else:
-            logger.warning(
-                f'Received message for topic={message.topic!r} '
-                f'but no listener is registered for it.'
-            )
 
     async def _handle_service_request(
             self,
@@ -415,11 +404,13 @@ async def build_node(
     topic_sender = TopicSender(peer_selector, connection_manager, node_message_codec)
 
     topic_listener_manager = TopicListenerManager()
+    topic_message_handler = TopicMessageHandler(topic_listener_manager)
+
     service_handler_manager = ServiceHandlerManager()
 
     client_handler = ClientHandler(
         node_message_codec,
-        topic_listener_manager,
+        topic_message_handler,
         service_handler_manager,
     )
 
