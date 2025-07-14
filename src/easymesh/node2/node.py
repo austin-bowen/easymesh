@@ -23,8 +23,8 @@ from easymesh.network import get_lan_hostname
 from easymesh.node.servers import PortScanTcpServerProvider, ServerProvider, ServersManager, TmpUnixServerProvider
 from easymesh.node2.loadbalancing import RoundRobinLoadBalancer, ServiceLoadBalancer, TopicLoadBalancer
 from easymesh.node2.peer import PeerConnectionBuilder, PeerConnectionManager, PeerSelector
-from easymesh.node2.service.handlermanager import ServiceHandlerManager
 from easymesh.node2.service.caller import ServiceCaller
+from easymesh.node2.service.handlermanager import ServiceHandlerManager
 from easymesh.node2.service.types import ServiceRequest
 from easymesh.node2.topic import TopicListenerCallback, TopicListenerManager, TopicSender
 from easymesh.node2.topology import MeshTopologyManager, get_removed_nodes
@@ -164,6 +164,22 @@ class Node:
     async def add_service(self, service: Service, handler: ServiceCallback) -> None:
         """Add a service to the node that other nodes can send requests to."""
         self.service_handler_manager.set_handler(service, handler)
+        await self.register()
+
+    async def remove_service(self, service: Service) -> None:
+        """Stop providing a service."""
+        self.service_handler_manager.remove_handler(service)
+        await self.register()
+
+    async def service_has_providers(self, service: Service) -> bool:
+        """Check if there are any nodes that provide the service."""
+        providers = self.topology_manager.get_nodes_providing_service(service)
+        return bool(providers)
+
+    async def wait_for_service(self, service: Service, poll_interval: float = 1.) -> None:
+        """Wait until there is a provider for a service."""
+        while not await self.service_has_providers(service):
+            await asyncio.sleep(poll_interval)
 
     async def register(self) -> None:
         node_spec = self._build_node_spec()
