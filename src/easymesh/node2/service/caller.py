@@ -101,8 +101,7 @@ class ServiceCaller:
                 await self._handle_one_response(reader)
         finally:
             self._fail_pending_response_futures_for(reader)
-            response_futures = self._response_futures.pop(reader)
-            assert not response_futures
+            self._response_futures.pop(reader)
 
     async def _handle_one_response(self, reader: Reader) -> None:
         response = await self.node_message_codec.decode_service_response(reader)
