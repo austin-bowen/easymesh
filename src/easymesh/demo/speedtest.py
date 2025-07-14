@@ -3,14 +3,14 @@ import time
 from argparse import ArgumentParser, Namespace
 from typing import Optional
 
+from easymesh import Node, build_node
 from easymesh.argparse import add_authkey_arg, add_coordinator_arg
 from easymesh.asyncio import noop
-from easymesh.node.node import MeshNode, build_mesh_node
 from easymesh.types import Topic
 
 
 class SpeedTest:
-    def __init__(self, node: MeshNode):
+    def __init__(self, node: Node):
         self.node = node
 
     async def measure_mps(
@@ -28,7 +28,7 @@ class SpeedTest:
                 await self.node.send('warmup')
                 await noop()
 
-        topic_sender = self.node.get_topic_sender(topic)
+        topic_sender = self.node.get_topic(topic)
 
         if not await topic_sender.has_listeners():
             raise ValueError(f'No listeners for topic={topic}')
@@ -92,14 +92,17 @@ class SpeedTest:
 async def main() -> None:
     args = _parse_args()
 
-    node = await build_mesh_node(
+    load_balancer = 'default' if args.enable_load_balancer else None
+
+    node = await build_node(
         name=f'speed-test/{args.role}',
         coordinator_host=args.coordinator.host,
         coordinator_port=args.coordinator.port,
         allow_unix_connections=not args.disable_unix,
         allow_tcp_connections=not args.disable_tcp,
         authkey=args.authkey,
-        load_balancer='default' if args.enable_load_balancer else None,
+        topic_load_balancer=load_balancer,
+        service_load_balancer=load_balancer,
     )
 
     speed_tester = SpeedTest(node)

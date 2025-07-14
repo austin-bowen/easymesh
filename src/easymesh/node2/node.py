@@ -414,11 +414,12 @@ async def build_node(
         service_handler_manager,
     )
 
+    request_id_bytes = 2  # Codec uses 2 bytes for request ID
     service_caller = ServiceCaller(
         peer_selector,
         connection_manager,
         node_message_codec,
-        max_request_ids=2 ** (8 * 2),  # Codec uses 2 bytes for request ID
+        max_request_ids=2 ** (8 * request_id_bytes),
     )
 
     node = Node(
