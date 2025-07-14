@@ -2,7 +2,8 @@ from abc import ABC, abstractmethod
 from asyncio import Future, wait_for
 from uuid import UUID
 
-from easymesh.types import Data, ServiceCallback, ServiceName, ServiceResponse, Topic
+from easymesh.types import Data, Service, Topic
+from easymesh.node2.service.types import ServiceResponse
 
 RequestId = int
 
@@ -15,14 +16,14 @@ class ServicesManager(ABC):
     @abstractmethod
     async def request(
             self,
-            service: ServiceName,
+            service: Service,
             data: Data = None,
             timeout: float = None,
     ) -> ServiceResponse:
         ...
 
     @abstractmethod
-    async def add_service(self, service: ServiceName, handler: ServiceCallback) -> None:
+    async def add_service(self, service: Service, handler) -> None:
         ...
 
 
@@ -66,7 +67,7 @@ class BasicServicesOverTopicsManager(ServicesManager):
 
     async def request(
             self,
-            service: ServiceName,
+            service: Service,
             data: Data = None,
             timeout: float = None,
     ) -> ServiceResponse:
@@ -89,7 +90,7 @@ class BasicServicesOverTopicsManager(ServicesManager):
         self._request_counter += 1
         return request_id
 
-    async def add_service(self, service: ServiceName, handler: ServiceCallback) -> None:
+    async def add_service(self, service: Service, handler) -> None:
         service_topic = get_service_topic(service)
 
         async def meta_handler(_: Topic, data: tuple[bytes, RequestId, Data]) -> None:
@@ -106,7 +107,7 @@ class BasicServicesOverTopicsManager(ServicesManager):
         await self.node.listen(service_topic, meta_handler)
 
 
-def get_service_topic(service: ServiceName) -> Topic:
+def get_service_topic(service: Service) -> Topic:
     return f's/{service}'
 
 
@@ -115,6 +116,6 @@ def get_response_topic(uuid: UUID) -> Topic:
 
 
 class NoServiceError(Exception):
-    def __init__(self, service: ServiceName):
+    def __init__(self, service: Service):
         super().__init__(f'No nodes currently hosting service={service!r}')
         self.service = service

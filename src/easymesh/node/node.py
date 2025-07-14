@@ -40,11 +40,10 @@ from easymesh.types import (
     Message,
     Port,
     ServerHost,
-    ServiceCallback,
-    ServiceName,
-    ServiceResponse,
+    Service,
     Topic,
 )
+from easymesh.node2.service.types import ServiceResponse
 
 try:
     from easymesh.codec import msgpack_codec
@@ -326,18 +325,18 @@ class MeshNode:
 
     async def request(
             self,
-            service: ServiceName,
+            service: Service,
             data: Data = None,
             timeout: float = None,
     ) -> ServiceResponse:
         """Send a request to a service and return the response."""
         return await self._services_manager.request(service, data, timeout)
 
-    async def add_service(self, service: ServiceName, handler: ServiceCallback) -> None:
+    async def add_service(self, service: Service, handler) -> None:
         """Add a service to the node that other nodes can send requests to."""
         await self._services_manager.add_service(service, handler)
 
-    def get_service(self, service: ServiceName) -> 'ServiceCaller':
+    def get_service(self, service: Service) -> 'ServiceCaller':
         """
         Returns a convenient way to call a service if used more than once.
 
@@ -378,9 +377,9 @@ class TopicSender:
 
 
 class ServiceCaller:
-    service: ServiceName
+    service: Service
 
-    def __init__(self, service: ServiceName, service_manager: ServicesManager):
+    def __init__(self, service: Service, service_manager: ServicesManager):
         self.service = service
         self._service_manager = service_manager
 

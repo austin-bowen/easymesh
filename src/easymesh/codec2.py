@@ -3,7 +3,8 @@ from abc import ABC, abstractmethod
 from typing import Any, Generic, Literal, TypeVar, Union
 
 from easymesh.asyncio import Reader, Writer
-from easymesh.types import Buffer, Data, Message, RequestId, Service, ServiceRequest, ServiceResponse, Topic
+from easymesh.node2.service.types import RequestId, ServiceRequest, ServiceResponse
+from easymesh.types import Buffer, Data, Message, Service, Topic
 from easymesh.utils import require
 
 try:

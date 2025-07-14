@@ -5,9 +5,9 @@ import pytest
 from easymesh.codec2 import NodeMessageCodec
 from easymesh.node2.peer import PeerConnection, PeerConnectionManager, PeerSelector
 from easymesh.asyncio import LockableWriter
-from easymesh.node2.service import ServiceCaller, ServiceRequestError, ServiceResponseError
+from easymesh.node2.service.caller import ServiceCaller, ServiceRequestError, ServiceResponseError
+from easymesh.node2.service.types import ServiceResponse
 from easymesh.specs import MeshNodeSpec
-from easymesh.types import ServiceResponse
 
 
 class TestServiceCaller:

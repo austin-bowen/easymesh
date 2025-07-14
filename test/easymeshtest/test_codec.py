@@ -15,7 +15,8 @@ from easymesh.codec2 import (
     ServiceResponseCodec,
     TopicMessageCodec,
 )
-from easymesh.types import Message, ServiceRequest, ServiceResponse
+from easymesh.types import Message
+from easymesh.node2.service.types import ServiceRequest, ServiceResponse
 
 
 class CodecTest:

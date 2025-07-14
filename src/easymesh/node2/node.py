@@ -23,12 +23,14 @@ from easymesh.network import get_lan_hostname
 from easymesh.node.servers import PortScanTcpServerProvider, ServerProvider, ServersManager, TmpUnixServerProvider
 from easymesh.node2.loadbalancing import RoundRobinLoadBalancer, ServiceLoadBalancer, TopicLoadBalancer
 from easymesh.node2.peer import PeerConnectionBuilder, PeerConnectionManager, PeerSelector
-from easymesh.node2.service import ServiceCaller, ServiceHandlerManager
+from easymesh.node2.service.handlermanager import ServiceHandlerManager
+from easymesh.node2.service.caller import ServiceCaller
+from easymesh.node2.service.types import ServiceRequest
 from easymesh.node2.topic import TopicListenerCallback, TopicListenerManager, TopicSender
 from easymesh.node2.topology import MeshTopologyManager, get_removed_nodes
 from easymesh.reqres import MeshTopologyBroadcast
 from easymesh.specs import MeshNodeSpec, NodeId
-from easymesh.types import Data, Host, Message, Port, ServerHost, Service, ServiceRequest, Topic
+from easymesh.types import Data, Host, Message, Port, ServerHost, Service, ServiceCallback, Topic
 
 logger = logging.getLogger(__name__)
 
@@ -159,6 +161,10 @@ class Node:
     async def request(self, service: Service, data: Data = None) -> Data:
         return await self.service_caller.request(service, data)
 
+    async def add_service(self, service: Service, handler: ServiceCallback) -> None:
+        """Add a service to the node that other nodes can send requests to."""
+        self.service_handler_manager.set_handler(service, handler)
+
     async def register(self) -> None:
         node_spec = self._build_node_spec()
         logger.info('Registering node with coordinator')
@@ -201,6 +207,7 @@ class Node:
         await forever()
 
 
+# TODO move this
 class ClientHandler:
     def __init__(
             self,

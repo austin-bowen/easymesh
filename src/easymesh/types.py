@@ -1,6 +1,6 @@
-from collections.abc import Awaitable, Callable, Sequence
+from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Any, NamedTuple, Protocol, Union
+from typing import Any, Awaitable, Callable, NamedTuple, Protocol, Union
 
 Host = str
 ServerHost = Union[Host, Sequence[Host], None]
@@ -17,7 +17,6 @@ class Endpoint:
 
 
 Topic = str
-Service = str
 Data = Any
 TopicCallback = Callable[[Topic, Data], None]
 
@@ -27,22 +26,8 @@ class Message(NamedTuple):
     data: Data
 
 
-ServiceName = str
-ServiceResponse = Any
-ServiceCallback = Callable[[Topic, Data], Awaitable[ServiceResponse]]
-RequestId = int
-
-
-class ServiceRequest(NamedTuple):
-    id: RequestId
-    service: ServiceName
-    data: Data
-
-
-class ServiceResponse(NamedTuple):
-    id: RequestId
-    data: Data = None
-    error: str | None = None
+Service = str
+ServiceCallback = Callable[[Service, Data], Awaitable[Data]]
 
 
 class Buffer(Protocol):

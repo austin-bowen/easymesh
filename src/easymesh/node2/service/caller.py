@@ -1,16 +1,15 @@
 import asyncio
 import logging
 from asyncio import Future
-from collections.abc import Awaitable, Callable, Generator
+from collections.abc import Iterator
 from contextlib import contextmanager
 from weakref import WeakKeyDictionary
 
 from easymesh.asyncio import Reader
 from easymesh.codec2 import NodeMessageCodec
 from easymesh.node2.peer import PeerConnectionManager, PeerSelector
-from easymesh.types import Data, RequestId, Service, ServiceRequest, ServiceResponse
-
-ServiceHandlerCallback = Callable[[Service, Data], Awaitable[Data]]
+from easymesh.node2.service.types import RequestId, ServiceRequest, ServiceResponse
+from easymesh.types import Data
 
 logger = logging.getLogger(__name__)
 
@@ -62,7 +61,7 @@ class ServiceCaller:
     def _get_request_id_and_response_future(
             self,
             reader: Reader,
-    ) -> Generator[tuple[RequestId, Future]]:
+    ) -> Iterator[tuple[RequestId, Future]]:
         request_id = self._get_new_request_id(reader)
         response_future = Future()
         self._response_futures[reader][request_id] = response_future
@@ -131,24 +130,3 @@ class ServiceRequestError(Exception):
 
 class ServiceResponseError(Exception):
     pass
-
-
-class ServiceHandlerManager:
-    def __init__(self):
-        self._handlers: dict[Service, ServiceHandlerCallback] = {}
-
-    @property
-    def services(self) -> set[Service]:
-        return set(self._handlers.keys())
-
-    def get_handler(self, service: Service) -> ServiceHandlerCallback | None:
-        return self._handlers.get(service)
-
-    def set_handler(self, service: Service, callback: ServiceHandlerCallback) -> None:
-        self._handlers[service] = callback
-
-    def remove_handler(self, service: Service) -> ServiceHandlerCallback | None:
-        return self._handlers.pop(service, None)
-
-    def has_handler(self, service: Service) -> bool:
-        return service in self._handlers
