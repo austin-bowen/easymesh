@@ -5,7 +5,7 @@ from functools import wraps
 from typing import NamedTuple
 
 from easymesh.argparse import get_node_arg_parser
-from easymesh.asyncio import Reader, Writer, close_ignoring_errors, forever
+from easymesh.asyncio import LockableWriter, Reader, Writer, close_ignoring_errors, forever
 from easymesh.authentication import Authenticator, optional_authkey_authenticator
 from easymesh.codec2 import (
     Codec,
@@ -21,11 +21,12 @@ from easymesh.coordinator.client import MeshCoordinatorClient, build_coordinator
 from easymesh.coordinator.constants import DEFAULT_COORDINATOR_PORT
 from easymesh.network import get_lan_hostname
 from easymesh.node.servers import PortScanTcpServerProvider, ServerProvider, ServersManager, TmpUnixServerProvider
-from easymesh.node2.loadbalancing import RoundRobinLoadBalancer, ServiceLoadBalancer, TopicLoadBalancer
+from easymesh.node2.loadbalancing import GroupingTopicLoadBalancer, RoundRobinLoadBalancer, ServiceLoadBalancer, \
+    TopicLoadBalancer, node_name_group_key
 from easymesh.node2.peer import PeerConnectionBuilder, PeerConnectionManager, PeerSelector
 from easymesh.node2.service.caller import ServiceCaller
 from easymesh.node2.service.handlermanager import ServiceHandlerManager
-from easymesh.node2.service.types import ServiceRequest
+from easymesh.node2.service.types import ServiceRequest, ServiceResponse
 from easymesh.node2.topic import TopicListenerCallback, TopicListenerManager, TopicSender
 from easymesh.node2.topology import MeshTopologyManager, get_removed_nodes
 from easymesh.reqres import MeshTopologyBroadcast
@@ -229,30 +230,39 @@ class ClientHandler:
             self,
             node_message_codec: NodeMessageCodec,
             topic_listener_manager: TopicListenerManager,
+            service_handler_manager: ServiceHandlerManager,
     ):
         self.node_message_codec = node_message_codec
         self.topic_listener_manager = topic_listener_manager
+        self.service_handler_manager = service_handler_manager
 
     async def handle_client(self, reader: Reader, writer: Writer) -> None:
         peer_name = writer.get_extra_info('peername') or writer.get_extra_info('sockname')
         logger.debug(f'New connection from: {peer_name}')
+
+        writer = LockableWriter(writer)
 
         while True:
             try:
                 message = await self.node_message_codec.decode_topic_message_or_service_request(reader)
             except EOFError:
                 logger.debug(f'Closed connection from: {peer_name}')
-                await close_ignoring_errors(writer)
+                async with writer:
+                    await close_ignoring_errors(writer)
                 return
             except Exception as e:
                 logger.exception(f'Error reading from peer={peer_name}', exc_info=e)
-                await close_ignoring_errors(writer)
+                async with writer:
+                    await close_ignoring_errors(writer)
                 return
 
             if isinstance(message, Message):
                 await self._handle_topic_message(message)
             elif isinstance(message, ServiceRequest):
-                await self._handle_service_request(message)
+                asyncio.create_task(
+                    self._handle_service_request(message, writer),
+                    name=f'Handle service request {message.id} from {peer_name}',
+                )
             else:
                 raise RuntimeError('Unreachable code')
 
@@ -267,9 +277,39 @@ class ClientHandler:
                 f'but no listener is registered for it.'
             )
 
-    async def _handle_service_request(self, request: ServiceRequest) -> None:
-        # TODO
-        ...
+    async def _handle_service_request(
+            self,
+            request: ServiceRequest,
+            writer: LockableWriter,
+    ) -> None:
+        handler = self.service_handler_manager.get_handler(request.service)
+
+        data, error = None, None
+
+        if handler is None:
+            logger.warning(
+                f'Received service request for service={request.service!r} '
+                f'but no handler is registered for it.'
+            )
+
+            error = f'service={request.service!r} is not provided by this node'
+        else:
+            try:
+                data = await handler(request.service, request.data)
+            except Exception as e:
+                logger.exception(
+                    f'Error handling service request={request}',
+                    exc_info=e,
+                )
+                error = repr(e)
+
+        response = ServiceResponse(request.id, data, error)
+
+        async with writer:
+            await self.node_message_codec.encode_service_response(
+                writer,
+                response,
+            )
 
 
 class TopicProxy(NamedTuple):
@@ -375,8 +415,13 @@ async def build_node(
     topic_sender = TopicSender(peer_selector, connection_manager, node_message_codec)
 
     topic_listener_manager = TopicListenerManager()
+    service_handler_manager = ServiceHandlerManager()
 
-    client_handler = ClientHandler(node_message_codec, topic_listener_manager)
+    client_handler = ClientHandler(
+        node_message_codec,
+        topic_listener_manager,
+        service_handler_manager,
+    )
 
     service_caller = ServiceCaller(
         peer_selector,
@@ -384,8 +429,6 @@ async def build_node(
         node_message_codec,
         max_request_ids=2 ** (8 * 2),  # Codec uses 2 bytes for request ID
     )
-
-    service_handler_manager = ServiceHandlerManager()
 
     node = Node(
         id=NodeId(name),
@@ -437,9 +480,14 @@ def build_peer_selector(
 ) -> PeerSelector:
     round_robin_load_balancer = RoundRobinLoadBalancer()
 
+    default_topic_load_balancer = GroupingTopicLoadBalancer(
+        group_key=node_name_group_key,
+        load_balancer=round_robin_load_balancer,
+    )
+
     return PeerSelector(
         topology_manager,
-        topic_load_balancer=topic_load_balancer or round_robin_load_balancer,
+        topic_load_balancer=topic_load_balancer or default_topic_load_balancer,
         service_load_balancer=service_load_balancer or round_robin_load_balancer,
     )
 

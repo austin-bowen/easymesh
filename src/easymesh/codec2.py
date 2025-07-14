@@ -297,10 +297,12 @@ class NodeMessageCodec:
         await self.service_request_codec.encode(buffer, request)
         return buffer
 
-    async def encode_service_response(self, response: ServiceResponse) -> Buffer:
-        buffer = BufferWriter()
-        await self.service_response_codec.encode(buffer, response)
-        return buffer
+    async def encode_service_response(
+            self,
+            writer: Writer,
+            response: ServiceResponse,
+    ) -> None:
+        await self.service_response_codec.encode(writer, response)
 
     async def decode_topic_message_or_service_request(self, reader: Reader) -> Message | ServiceRequest:
         prefix = await reader.readexactly(1)
