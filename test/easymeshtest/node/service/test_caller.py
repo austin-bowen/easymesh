@@ -42,7 +42,7 @@ class TestServiceCaller:
             ServiceResponse(id=0, data='response'),
         ]
 
-        response = await self.service_caller.request('service', 'data')
+        response = await self.service_caller.call('service', 'data')
         assert response == 'response'
 
         assert self.service_caller._next_request_id == 1
@@ -57,7 +57,7 @@ class TestServiceCaller:
         ]
 
         with pytest.raises(ServiceResponseError, match='error message'):
-            await self.service_caller.request('service', 'data')
+            await self.service_caller.call('service', 'data')
 
         self._assert_no_pending_requests()
         assert self.connection.writer.write.await_count == 1
@@ -66,7 +66,7 @@ class TestServiceCaller:
     @pytest.mark.asyncio
     async def test_request_with_unknown_service_raises_ValueError(self):
         with pytest.raises(ValueError, match="No node hosting service='unknown_service'"):
-            await self.service_caller.request('unknown_service', 'data')
+            await self.service_caller.call('unknown_service', 'data')
 
         self._assert_no_pending_requests()
         self.connection.writer.write.assert_not_awaited()
@@ -79,7 +79,7 @@ class TestServiceCaller:
         }
 
         with pytest.raises(ServiceRequestError):
-            await self.service_caller.request('service', 'data')
+            await self.service_caller.call('service', 'data')
 
     @pytest.mark.asyncio
     async def test_requests_fail_for_reader_with_error(self):
@@ -89,7 +89,7 @@ class TestServiceCaller:
                 ServiceResponseError,
                 match='Reader .* was closed before response was received',
         ):
-            await self.service_caller.request('service', 'data')
+            await self.service_caller.call('service', 'data')
 
         self._assert_no_pending_requests()
 

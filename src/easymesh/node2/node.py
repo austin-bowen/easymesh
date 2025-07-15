@@ -159,11 +159,11 @@ class Node:
     def get_topic(self, topic: Topic) -> 'TopicProxy':
         return TopicProxy(self, topic)
 
-    async def request(self, service: Service, data: Data = None) -> Data:
-        return await self.service_caller.request(service, data)
+    async def call(self, service: Service, data: Data = None) -> Data:
+        return await self.service_caller.call(service, data)
 
     async def add_service(self, service: Service, handler: ServiceCallback) -> None:
-        """Add a service to the node that other nodes can send requests to."""
+        """Add a service to the node that other nodes can call."""
         self.service_handler_manager.set_handler(service, handler)
         await self.register()
 
@@ -190,7 +190,7 @@ class Node:
             >>> math_service = node.get_service('math')
             >>> result = await math_service('2 + 2')
             >>> # ... is equivalent to ...
-            >>> result = await node.request('math', '2 + 2')
+            >>> result = await node.call('math', '2 + 2')
         """
 
         return ServiceProxy(self, service)
@@ -340,10 +340,10 @@ class ServiceProxy(NamedTuple):
         return f'{name}(service={self.service})'
 
     async def __call__(self, data: Data = None) -> ServiceResponse:
-        return await self.request(data)
+        return await self.call(data)
 
-    async def request(self, data: Data = None) -> Data:
-        return await self.node.request(self.service, data)
+    async def call(self, data: Data = None) -> Data:
+        return await self.node.call(self.service, data)
 
     async def has_providers(self) -> bool:
         return await self.node.service_has_providers(self.service)

@@ -33,7 +33,7 @@ class ServiceCaller:
             dict[RequestId, Future]
         ] = WeakKeyDictionary()
 
-    async def request(self, service: str, data: Data) -> Data:
+    async def call(self, service: str, data: Data) -> Data:
         node = self.peer_selector.get_node_for_service(service)
         if node is None:
             raise ValueError(f'No node hosting service={service!r}')
