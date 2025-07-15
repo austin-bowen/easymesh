@@ -1,7 +1,7 @@
 import asyncio
 from argparse import Namespace
 
-from easymesh import build_mesh_node_from_args
+from easymesh import build_node_from_args
 from easymesh.argparse import get_node_arg_parser
 from easymesh.bag.info import add_info_args, display_info
 from easymesh.bag.play import add_play_args, play
@@ -17,10 +17,10 @@ def main() -> None:
 
 async def _main(args: Namespace):
     if args.command == 'record':
-        node = await build_mesh_node_from_args(args=args)
+        node = await build_node_from_args(args=args)
         await record(node, args)
     elif args.command == 'play':
-        node = await build_mesh_node_from_args(args=args)
+        node = await build_node_from_args(args=args)
         await play(node, args)
     elif args.command == 'info':
         await display_info(args)

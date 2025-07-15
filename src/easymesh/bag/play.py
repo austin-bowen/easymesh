@@ -4,11 +4,11 @@ from datetime import datetime
 from pathlib import Path
 
 from easymesh.bag.file import get_bag_file_messages, get_most_recent_bag_file_path
-from easymesh.node.node import MeshNode
+from easymesh import Node
 from easymesh.utils import require
 
 
-async def play(node: MeshNode, args: Namespace) -> None:
+async def play(node: Node, args: Namespace) -> None:
     bag_file_path = args.input or get_most_recent_bag_file_path()
 
     print(f'Playing back messages from "{bag_file_path}"...')

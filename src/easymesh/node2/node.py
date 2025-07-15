@@ -374,7 +374,7 @@ async def build_node_from_args(
             is created using `get_node_arg_parser` and is used to parse args.
             This is useful if you create your own argument parser.
         kwargs:
-            Additional keyword arguments to pass to `build_mesh_node`.
+            Additional keyword arguments to pass to `build_node`.
             These will override anything specified in `args`.
     """
 

@@ -56,8 +56,8 @@ receiver got: topic=some-topic; data={'hello': 'world!'}
 import easymesh
 
 async def main():
-    node = await easymesh.build_mesh_node(name='client')
-    response = await node.request('add', (2, 2), timeout=10)
+    node = await easymesh.build_node(name='client')
+    response = await node.call('add', (2, 2))
     assert response == 4
 ```
 
@@ -66,7 +66,7 @@ async def main():
 import easymesh
 
 async def main():
-    node = await easymesh.build_mesh_node(name='server')
+    node = await easymesh.build_node(name='server')
     await node.add_service('add', add)
 
 async def add(data):
@@ -146,7 +146,7 @@ Security is not a primary concern of `easymesh`. Messages are sent in plaintext 
 
 There is optional authentication support to ensure all nodes on the mesh are allowed to be there. This is done using symmetric HMAC challenge-response. The coordinator will authenticate all nodes before adding them to the mesh, and all nodes will authenticate each other before connecting. This could come in handy when e.g. running multiple meshes on the same network, to avoid accidentally connecting a node to the wrong mesh.
 
-Simply provide the `--authkey=...` argument when starting the coordinator, and ensure the `authkey=b'...'` argument is provided to `build_mesh_node(...)`, e.g.
+Simply provide the `--authkey=...` argument when starting the coordinator, and ensure the `authkey=b'...'` argument is provided to `build_node(...)`, e.g.
 
 ```bash
 $ easymesh --authkey my-secret-key

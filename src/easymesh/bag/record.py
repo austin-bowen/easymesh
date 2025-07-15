@@ -4,11 +4,10 @@ from argparse import Namespace
 from datetime import datetime
 from pathlib import Path
 
-from easymesh.asyncio import forever
-from easymesh.node.node import MeshNode
+from easymesh import Node
 
 
-async def record(node: MeshNode, args: Namespace) -> None:
+async def record(node: Node, args: Namespace) -> None:
     bag_file_path = args.output or get_bag_file_path()
 
     with open(bag_file_path, 'wb') as bag_file:
@@ -32,7 +31,7 @@ async def record(node: MeshNode, args: Namespace) -> None:
             print(f'- {topic}')
 
         try:
-            await forever()
+            await node.forever()
         except asyncio.CancelledError:
             print('\nRecording stopped.')
 
