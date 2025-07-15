@@ -2,9 +2,10 @@ import asyncio
 import traceback
 from asyncio import Lock, StreamWriter, Task
 from collections.abc import Awaitable, Iterable, Sized
+from io import BytesIO
 from typing import Protocol, Type, TypeVar, Union
 
-from easymesh.types import Host, Port
+from easymesh.types import Buffer, Host, Port
 
 T = TypeVar('T')
 E = TypeVar('E', bound=BaseException)
@@ -190,23 +191,31 @@ class LockableWriter(Writer):
             raise RuntimeError('Writer must be locked before writing')
 
 
-# TODO remove this
-class MultiWriter(Writer):
-    def __init__(self, writers: Iterable[Writer]):
-        self.writers = writers
+class BufferReader(Reader):
+    def __init__(self, data: bytes):
+        self._data = BytesIO(data)
 
+    async def readexactly(self, n: int) -> bytes:
+        data = self._data.read(n)
+        assert len(data) == n
+        return data
+
+    async def readuntil(self, separator: bytes) -> bytes:
+        raise NotImplementedError()
+
+
+class BufferWriter(bytearray, Buffer, Writer):
     async def write(self, data: bytes) -> None:
-        for writer in self.writers:
-            await writer.write(data)
+        self.extend(data)
 
     async def drain(self) -> None:
-        for writer in self.writers:
-            await writer.drain()
+        pass
 
     async def close(self) -> None:
-        for writer in self.writers:
-            await writer.close()
+        pass
 
     async def wait_closed(self) -> None:
-        for writer in self.writers:
-            await writer.wait_closed()
+        pass
+
+    def get_extra_info(self, name: str, default=None):
+        raise NotImplementedError()

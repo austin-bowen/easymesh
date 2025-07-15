@@ -2,7 +2,7 @@ import pickle
 from abc import ABC, abstractmethod
 from typing import Any, Generic, Literal, TypeVar, Union
 
-from easymesh.asyncio import Reader, Writer
+from easymesh.asyncio import BufferWriter, Reader, Writer
 from easymesh.node.service.types import RequestId, ServiceRequest, ServiceResponse
 from easymesh.types import Buffer, Data, Message, Service, Topic
 from easymesh.utils import require
@@ -316,20 +316,3 @@ class NodeMessageCodec:
 
     async def decode_service_response(self, reader: Reader) -> ServiceResponse:
         return await self.service_response_codec.decode(reader)
-
-
-class BufferWriter(bytearray, Buffer, Writer):
-    async def write(self, data: bytes) -> None:
-        self.extend(data)
-
-    async def drain(self) -> None:
-        pass
-
-    async def close(self) -> None:
-        pass
-
-    async def wait_closed(self) -> None:
-        pass
-
-    def get_extra_info(self, name: str, default=None):
-        raise NotImplementedError()

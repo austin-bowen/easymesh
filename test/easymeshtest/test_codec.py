@@ -1,11 +1,9 @@
-from io import BytesIO
 from unittest.mock import AsyncMock, call
 
 import pytest
 
-from easymesh.asyncio import Reader, Writer
+from easymesh.asyncio import BufferReader, BufferWriter, Writer
 from easymesh.codec2 import (
-    BufferWriter,
     Codec,
     FixedLengthIntCodec,
     LengthPrefixedStringCodec,
@@ -380,16 +378,3 @@ class TestNodeMessageCodec:
         reader = BufferReader(b'\x01\x00\x00\x04data')
         response = await self.codec.decode_service_response(reader)
         assert response == ServiceResponse(id=1, data='data')
-
-
-class BufferReader(Reader):
-    def __init__(self, data: bytes):
-        self._data = BytesIO(data)
-
-    async def readexactly(self, n: int) -> bytes:
-        data = self._data.read(n)
-        assert len(data) == n
-        return data
-
-    async def readuntil(self, separator: bytes) -> bytes:
-        raise NotImplementedError()
