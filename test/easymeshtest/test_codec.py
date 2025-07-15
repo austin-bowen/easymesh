@@ -5,6 +5,7 @@ import pytest
 
 from easymesh.asyncio import Reader, Writer
 from easymesh.codec2 import (
+    BufferWriter,
     Codec,
     FixedLengthIntCodec,
     LengthPrefixedStringCodec,
@@ -15,8 +16,8 @@ from easymesh.codec2 import (
     ServiceResponseCodec,
     TopicMessageCodec,
 )
-from easymesh.types import Message
 from easymesh.node2.service.types import ServiceRequest, ServiceResponse
+from easymesh.types import Message
 
 
 class CodecTest:
@@ -356,9 +357,10 @@ class TestNodeMessageCodec:
 
     @pytest.mark.asyncio
     async def test_encode_service_response(self):
+        writer = BufferWriter()
         response = ServiceResponse(id=1, data='data')
-        result = await self.codec.encode_service_response(response)
-        assert result == b'\x01\x00\x00\x04data'
+        await self.codec.encode_service_response(writer, response)
+        assert bytes(writer) == b'\x01\x00\x00\x04data'
 
     @pytest.mark.asyncio
     async def test_decode_topic_message_or_service_request(self):
