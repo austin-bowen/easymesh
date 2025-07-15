@@ -3,7 +3,7 @@ import logging
 import tempfile
 from abc import ABC, abstractmethod
 from asyncio import Server, StreamReader, StreamWriter
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Iterable
 from typing import Optional
 
 from easymesh.asyncio import FullyAsyncStreamWriter, Reader, Writer
@@ -142,8 +142,13 @@ class TmpUnixServerProvider(ServerProvider):
 
 
 class ServersManager:
-    def __init__(self, server_providers: list[ServerProvider]):
+    def __init__(
+            self,
+            server_providers: Iterable[ServerProvider],
+            client_connected_cb: ClientConnectedCallback,
+    ):
         self.server_providers = server_providers
+        self.client_connected_cb = client_connected_cb
 
         self._connection_specs: list[ConnectionSpec] = []
 
@@ -151,16 +156,13 @@ class ServersManager:
     def connection_specs(self) -> list[ConnectionSpec]:
         return list(self._connection_specs)
 
-    async def start_servers(
-            self,
-            client_connected_cb: ClientConnectedCallback,
-    ) -> None:
+    async def start_servers(self) -> None:
         if self._connection_specs:
             raise RuntimeError('Servers have already been started.')
 
         for provider in self.server_providers:
             try:
-                server, connection_spec = await provider.start_server(client_connected_cb)
+                server, connection_spec = await provider.start_server(self.client_connected_cb)
             except UnsupportedProviderError as e:
                 logger.exception(f'Failed to start server using provider={provider}', exc_info=e)
             else:

@@ -47,7 +47,6 @@ class Node:
             id: NodeId,
             coordinator_client: MeshCoordinatorClient,
             servers_manager: ServersManager,
-            client_handler: 'ClientHandler',
             topology_manager: MeshTopologyManager,
             connection_manager: PeerConnectionManager,
             topic_sender: TopicSender,
@@ -58,7 +57,6 @@ class Node:
         self._id = id
         self.coordinator_client = coordinator_client
         self.servers_manager = servers_manager
-        self.client_handler = client_handler
         self.topology_manager = topology_manager
         self.connection_manager = connection_manager
         self.topic_sender = topic_sender
@@ -79,7 +77,7 @@ class Node:
         logger.info(f'Starting node {self.id}')
 
         logger.debug('Starting servers')
-        await self.servers_manager.start_servers(self.client_handler.handle_client)
+        await self.servers_manager.start_servers()
 
         await self.register()
 
@@ -418,14 +416,6 @@ async def build_node(
         reconnect_timeout=coordinator_reconnect_timeout,
     )
 
-    server_providers = build_server_providers(
-        allow_unix_connections,
-        allow_tcp_connections,
-        node_server_host,
-        node_client_host,
-    )
-    servers_manager = ServersManager(server_providers)
-
     topology_manager = MeshTopologyManager()
 
     peer_selector = build_peer_selector(
@@ -453,6 +443,14 @@ async def build_node(
         service_handler_manager,
     )
 
+    server_providers = build_server_providers(
+        allow_unix_connections,
+        allow_tcp_connections,
+        node_server_host,
+        node_client_host,
+    )
+    servers_manager = ServersManager(server_providers, client_handler.handle_client)
+
     request_id_bytes = 2  # Codec uses 2 bytes for request ID
     service_caller = ServiceCaller(
         peer_selector,
@@ -465,7 +463,6 @@ async def build_node(
         id=NodeId(name),
         coordinator_client=coordinator_client,
         servers_manager=servers_manager,
-        client_handler=client_handler,
         topology_manager=topology_manager,
         connection_manager=connection_manager,
         topic_sender=topic_sender,
