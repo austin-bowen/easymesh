@@ -182,6 +182,19 @@ class Node:
         while not await self.service_has_providers(service):
             await asyncio.sleep(poll_interval)
 
+    def get_service(self, service: Service) -> 'ServiceProxy':
+        """
+        Returns a convenient way to call a service if used more than once.
+
+        Example:
+            >>> math_service = node.get_service('math')
+            >>> result = await math_service('2 + 2')
+            >>> # ... is equivalent to ...
+            >>> result = await node.request('math', '2 + 2')
+        """
+
+        return ServiceProxy(self, service)
+
     async def register(self) -> None:
         node_spec = self._build_node_spec()
         logger.info('Registering node with coordinator')
@@ -316,6 +329,27 @@ class TopicProxy(NamedTuple):
 
     def depends_on_listener(self, poll_interval: float = 1.):
         return self.node.depends_on_listener(self.topic, poll_interval)
+
+
+class ServiceProxy(NamedTuple):
+    node: Node
+    service: Service
+
+    def __str__(self) -> str:
+        name = self.__class__.__name__
+        return f'{name}(service={self.service})'
+
+    async def __call__(self, data: Data = None) -> ServiceResponse:
+        return await self.request(data)
+
+    async def request(self, data: Data = None) -> Data:
+        return await self.node.request(self.service, data)
+
+    async def has_providers(self) -> bool:
+        return await self.node.service_has_providers(self.service)
+
+    async def wait_for_provider(self, poll_interval: float = 1.) -> None:
+        await self.node.wait_for_service(self.service, poll_interval)
 
 
 async def build_node_from_args(
