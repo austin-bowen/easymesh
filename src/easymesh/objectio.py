@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import Generic, Literal, TypeVar
 
 from easymesh.asyncio import BufferReader, BufferWriter, Reader, Writer
-from easymesh.codec2 import Codec, pickle_codec
+from easymesh.codec import Codec, pickle_codec
 from easymesh.types import Data, Message
 from easymesh.utils import require
 

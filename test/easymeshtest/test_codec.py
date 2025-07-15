@@ -3,7 +3,7 @@ from unittest.mock import AsyncMock, call
 import pytest
 
 from easymesh.asyncio import BufferReader, BufferWriter, Writer
-from easymesh.codec2 import (
+from easymesh.codec import (
     Codec,
     FixedLengthIntCodec,
     LengthPrefixedStringCodec,

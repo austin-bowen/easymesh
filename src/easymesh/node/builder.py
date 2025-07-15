@@ -4,7 +4,7 @@ from typing import Literal
 from easymesh import Node
 from easymesh.argparse import get_node_arg_parser
 from easymesh.authentication import Authenticator, optional_authkey_authenticator
-from easymesh.codec2 import (
+from easymesh.codec import (
     Codec,
     FixedLengthIntCodec,
     LengthPrefixedStringCodec,
@@ -35,7 +35,7 @@ from easymesh.specs import NodeId
 from easymesh.types import Data, Host, Port, ServerHost
 
 try:
-    from easymesh.codec2 import msgpack_codec
+    from easymesh.codec import msgpack_codec
 except ImportError:
     msgpack_codec = None
 

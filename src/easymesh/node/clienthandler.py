@@ -2,7 +2,7 @@ import asyncio
 import logging
 
 from easymesh.asyncio import LockableWriter, Reader, Writer, close_ignoring_errors
-from easymesh.codec2 import NodeMessageCodec
+from easymesh.codec import NodeMessageCodec
 from easymesh.node.service.handlermanager import ServiceHandlerManager
 from easymesh.node.service.types import ServiceRequest, ServiceResponse
 from easymesh.node.topic import TopicMessageHandler
