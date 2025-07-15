@@ -5,7 +5,6 @@ from typing import Generic, Literal, TypeVar
 
 from easymesh.asyncio import BufferReader, BufferWriter, Reader, Writer
 from easymesh.codec import Codec, pickle_codec
-from easymesh.types import Data, Message
 from easymesh.utils import require
 
 DEFAULT_TOPIC_ENCODING: str = 'utf-8'
@@ -162,51 +161,4 @@ class CodecObjectWriter(StreamObjectWriter[T]):
     async def _write(self, obj: T) -> None:
         data = BufferWriter()
         await self.codec.encode(data, obj)
-        await self._write_data_with_len_header(data)
-
-
-class MessageReader(StreamObjectReader[Message]):
-    def __init__(
-            self,
-            reader: Reader,
-            codec: Codec[Data],
-            topic_encoding: str = DEFAULT_TOPIC_ENCODING,
-            byte_order: ByteOrder = DEFAULT_BYTE_ORDER,
-            max_header_len: int = DEFAULT_MAX_HEADER_LEN,
-    ):
-        super().__init__(reader, byte_order, max_header_len)
-        self.codec = codec
-        self.topic_encoding = topic_encoding
-
-    async def _read(self) -> Message:
-        topic = await self._read_data_with_len_header()
-        topic = topic.decode(self.topic_encoding)
-
-        data = await self._read_data_with_len_header()
-        data = BufferReader(data)
-        data = await self.codec.decode(data) if data else None
-
-        return Message(topic, data)
-
-
-class MessageWriter(StreamObjectWriter[Message]):
-    def __init__(
-            self,
-            writer: Writer,
-            codec: Codec[Data],
-            topic_encoding: str = DEFAULT_TOPIC_ENCODING,
-            byte_order: ByteOrder = DEFAULT_BYTE_ORDER,
-            max_header_len: int = DEFAULT_MAX_HEADER_LEN,
-    ):
-        super().__init__(writer, byte_order, max_header_len)
-        self.codec = codec
-        self.topic_encoding = topic_encoding
-
-    async def _write(self, message: Message) -> None:
-        topic = message.topic.encode(self.topic_encoding)
-        await self._write_data_with_len_header(topic)
-
-        data = BufferWriter()
-        if message.data is not None:
-            await self.codec.encode(data, message.data)
         await self._write_data_with_len_header(data)
