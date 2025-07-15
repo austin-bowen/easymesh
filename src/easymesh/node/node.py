@@ -1,43 +1,20 @@
 import asyncio
 import logging
-from argparse import Namespace
 from functools import wraps
 from typing import NamedTuple
 
-from easymesh.argparse import get_node_arg_parser
 from easymesh.asyncio import forever
-from easymesh.authentication import Authenticator, optional_authkey_authenticator
-from easymesh.codec2 import (
-    Codec,
-    FixedLengthIntCodec,
-    LengthPrefixedStringCodec,
-    NodeMessageCodec,
-    ServiceRequestCodec,
-    ServiceResponseCodec,
-    TopicMessageCodec,
-    pickle_codec,
-)
-from easymesh.coordinator.client import MeshCoordinatorClient, build_coordinator_client
-from easymesh.coordinator.constants import DEFAULT_COORDINATOR_PORT
-from easymesh.network import get_lan_hostname
-from easymesh.node.clienthandler import ClientHandler
-from easymesh.node.loadbalancing import (
-    GroupingTopicLoadBalancer,
-    RoundRobinLoadBalancer,
-    ServiceLoadBalancer,
-    TopicLoadBalancer,
-    node_name_group_key,
-)
-from easymesh.node.peer import PeerConnectionBuilder, PeerConnectionManager, PeerSelector
-from easymesh.node.servers import PortScanTcpServerProvider, ServerProvider, ServersManager, TmpUnixServerProvider
+from easymesh.coordinator.client import MeshCoordinatorClient
+from easymesh.node.peer import PeerConnectionManager
+from easymesh.node.servers import ServersManager
 from easymesh.node.service.caller import ServiceCaller
 from easymesh.node.service.handlermanager import ServiceHandlerManager
 from easymesh.node.service.types import ServiceResponse
-from easymesh.node.topic import TopicListenerCallback, TopicListenerManager, TopicMessageHandler, TopicSender
+from easymesh.node.topic import TopicListenerCallback, TopicListenerManager, TopicSender
 from easymesh.node.topology import MeshTopologyManager, get_removed_nodes
 from easymesh.reqres import MeshTopologyBroadcast
 from easymesh.specs import MeshNodeSpec, NodeId
-from easymesh.types import Data, Host, Port, ServerHost, Service, ServiceCallback, Topic
+from easymesh.types import Data, Service, ServiceCallback, Topic
 
 logger = logging.getLogger(__name__)
 
@@ -277,197 +254,3 @@ class ServiceProxy(NamedTuple):
 
     async def wait_for_provider(self, poll_interval: float = 1.) -> None:
         await self.node.wait_for_service(self.service, poll_interval)
-
-
-async def build_node_from_args(
-        default_node_name: str = None,
-        args: Namespace = None,
-        **kwargs,
-) -> Node:
-    """
-    Builds a node from command line arguments.
-
-    Args:
-        default_node_name:
-            Default node name. If not given, the argument is required.
-            Ignored if `args` is given.
-        args:
-            Arguments from an argument parser. If not given, an argument parser
-            is created using `get_node_arg_parser` and is used to parse args.
-            This is useful if you create your own argument parser.
-        kwargs:
-            Additional keyword arguments to pass to `build_node`.
-            These will override anything specified in `args`.
-    """
-
-    if args is None:
-        args = get_node_arg_parser(default_node_name).parse_args()
-
-    build_args = vars(args)
-
-    if hasattr(args, 'coordinator'):
-        build_args['coordinator_host'] = args.coordinator.host
-        build_args['coordinator_port'] = args.coordinator.port
-
-    build_args.update(kwargs)
-
-    return await build_node(**build_args)
-
-
-async def build_node(
-        name: str,
-        coordinator_host: Host = 'localhost',
-        coordinator_port: Port = DEFAULT_COORDINATOR_PORT,
-        coordinator_reconnect_timeout: float | None = 5.0,
-        allow_unix_connections: bool = True,
-        allow_tcp_connections: bool = True,
-        node_server_host: ServerHost = None,
-        node_client_host: Host = None,
-        data_codec: Codec[Data] = pickle_codec,
-        topic_load_balancer: TopicLoadBalancer = None,
-        service_load_balancer: ServiceLoadBalancer = None,
-        authkey: bytes = None,
-        authenticator: Authenticator = None,
-        start: bool = True,
-        **kwargs,
-) -> Node:
-    authenticator = authenticator or optional_authkey_authenticator(authkey)
-
-    coordinator_client = await build_coordinator_client(
-        coordinator_host,
-        coordinator_port,
-        authenticator,
-        reconnect_timeout=coordinator_reconnect_timeout,
-    )
-
-    topology_manager = MeshTopologyManager()
-
-    peer_selector = build_peer_selector(
-        topology_manager,
-        topic_load_balancer,
-        service_load_balancer,
-    )
-
-    connection_manager = PeerConnectionManager(
-        PeerConnectionBuilder(authenticator),
-    )
-
-    node_message_codec = build_node_message_codec(data_codec)
-
-    topic_sender = TopicSender(peer_selector, connection_manager, node_message_codec)
-
-    topic_listener_manager = TopicListenerManager()
-    topic_message_handler = TopicMessageHandler(topic_listener_manager)
-
-    service_handler_manager = ServiceHandlerManager()
-
-    client_handler = ClientHandler(
-        node_message_codec,
-        topic_message_handler,
-        service_handler_manager,
-    )
-
-    server_providers = build_server_providers(
-        allow_unix_connections,
-        allow_tcp_connections,
-        node_server_host,
-        node_client_host,
-    )
-    servers_manager = ServersManager(server_providers, client_handler.handle_client)
-
-    request_id_bytes = 2  # Codec uses 2 bytes for request ID
-    service_caller = ServiceCaller(
-        peer_selector,
-        connection_manager,
-        node_message_codec,
-        max_request_ids=2 ** (8 * request_id_bytes),
-    )
-
-    node = Node(
-        id=NodeId(name),
-        coordinator_client=coordinator_client,
-        servers_manager=servers_manager,
-        topology_manager=topology_manager,
-        connection_manager=connection_manager,
-        topic_sender=topic_sender,
-        topic_listener_manager=topic_listener_manager,
-        service_caller=service_caller,
-        service_handler_manager=service_handler_manager,
-    )
-
-    if start:
-        await node.start()
-
-    return node
-
-
-def build_server_providers(
-        allow_unix_connections: bool,
-        allow_tcp_connections: bool,
-        node_server_host: ServerHost | None,
-        node_client_host: Host | None,
-) -> list[ServerProvider]:
-    server_providers = []
-
-    if allow_unix_connections:
-        server_providers.append(TmpUnixServerProvider())
-
-    if allow_tcp_connections:
-        if not node_client_host:
-            node_client_host = get_lan_hostname()
-
-        provider = PortScanTcpServerProvider(node_server_host, node_client_host)
-        server_providers.append(provider)
-
-    if not server_providers:
-        raise ValueError('Must allow at least one type of connection')
-
-    return server_providers
-
-
-def build_peer_selector(
-        topology_manager: MeshTopologyManager,
-        topic_load_balancer: TopicLoadBalancer | None,
-        service_load_balancer: ServiceLoadBalancer | None,
-) -> PeerSelector:
-    round_robin_load_balancer = RoundRobinLoadBalancer()
-
-    default_topic_load_balancer = GroupingTopicLoadBalancer(
-        group_key=node_name_group_key,
-        load_balancer=round_robin_load_balancer,
-    )
-
-    return PeerSelector(
-        topology_manager,
-        topic_load_balancer=topic_load_balancer or default_topic_load_balancer,
-        service_load_balancer=service_load_balancer or round_robin_load_balancer,
-    )
-
-
-def build_node_message_codec(
-        data_codec: Codec[Data],
-) -> NodeMessageCodec:
-    short_string_codec = LengthPrefixedStringCodec(
-        len_prefix_codec=FixedLengthIntCodec(length=1)
-    )
-
-    request_id_codec = FixedLengthIntCodec(length=2)
-
-    return NodeMessageCodec(
-        topic_message_codec=TopicMessageCodec(
-            topic_codec=short_string_codec,
-            data_codec=data_codec,
-        ),
-        service_request_codec=ServiceRequestCodec(
-            request_id_codec,
-            service_codec=short_string_codec,
-            data_codec=data_codec,
-        ),
-        service_response_codec=ServiceResponseCodec(
-            request_id_codec,
-            data_codec=data_codec,
-            error_codec=LengthPrefixedStringCodec(
-                len_prefix_codec=FixedLengthIntCodec(length=2),
-            )
-        ),
-    )

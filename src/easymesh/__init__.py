@@ -1,1 +1,2 @@
-from easymesh.node.node import Node, build_node, build_node_from_args
+from easymesh.node.node import Node
+from easymesh.node.builder import build_node, build_node_from_args
