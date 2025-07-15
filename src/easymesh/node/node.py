@@ -24,7 +24,7 @@ from easymesh.node.loadbalancing import (
     node_name_group_key,
 )
 from easymesh.node.peer import MeshPeer, PeerManager
-from easymesh.node.servers import (
+from easymesh.node2.servers import (
     PortScanTcpServerProvider,
     ServerProvider,
     TmpUnixServerProvider,
