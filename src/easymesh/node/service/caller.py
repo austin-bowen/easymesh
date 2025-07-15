@@ -7,8 +7,8 @@ from weakref import WeakKeyDictionary
 
 from easymesh.asyncio import Reader
 from easymesh.codec2 import NodeMessageCodec
-from easymesh.node2.peer import PeerConnectionManager, PeerSelector
-from easymesh.node2.service.types import RequestId, ServiceRequest, ServiceResponse
+from easymesh.node.peer import PeerConnectionManager, PeerSelector
+from easymesh.node.service.types import RequestId, ServiceRequest, ServiceResponse
 from easymesh.types import Data
 
 logger = logging.getLogger(__name__)

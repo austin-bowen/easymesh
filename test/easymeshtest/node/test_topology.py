@@ -1,4 +1,4 @@
-from easymesh.node2.topology import MeshTopologyManager, get_removed_nodes
+from easymesh.node.topology import MeshTopologyManager, get_removed_nodes
 from easymesh.specs import MeshNodeSpec, MeshTopologySpec, NodeId
 
 

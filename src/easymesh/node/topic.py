@@ -5,7 +5,7 @@ from typing_extensions import Buffer
 
 from easymesh.asyncio import log_error, many
 from easymesh.codec2 import NodeMessageCodec
-from easymesh.node2.peer import PeerConnectionManager, PeerSelector
+from easymesh.node.peer import PeerConnectionManager, PeerSelector
 from easymesh.specs import MeshNodeSpec
 from easymesh.types import Data, Message, Topic
 

@@ -3,10 +3,10 @@ from unittest.mock import AsyncMock
 import pytest
 
 from easymesh.codec2 import NodeMessageCodec
-from easymesh.node2.peer import PeerConnection, PeerConnectionManager, PeerSelector
+from easymesh.node.peer import PeerConnection, PeerConnectionManager, PeerSelector
 from easymesh.asyncio import LockableWriter
-from easymesh.node2.service.caller import ServiceCaller, ServiceRequestError, ServiceResponseError
-from easymesh.node2.service.types import ServiceResponse
+from easymesh.node.service.caller import ServiceCaller, ServiceRequestError, ServiceResponseError
+from easymesh.node.service.types import ServiceResponse
 from easymesh.specs import MeshNodeSpec
 
 

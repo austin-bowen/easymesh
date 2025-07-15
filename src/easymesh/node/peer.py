@@ -11,8 +11,8 @@ from easymesh.asyncio import (
 )
 from easymesh.authentication import Authenticator
 from easymesh.network import get_hostname
-from easymesh.node2.loadbalancing import ServiceLoadBalancer, TopicLoadBalancer
-from easymesh.node2.topology import MeshTopologyManager
+from easymesh.node.loadbalancing import ServiceLoadBalancer, TopicLoadBalancer
+from easymesh.node.topology import MeshTopologyManager
 from easymesh.specs import ConnectionSpec, IpConnectionSpec, MeshNodeSpec, NodeId, UnixConnectionSpec
 from easymesh.types import Host, Service, Topic
 

@@ -20,20 +20,20 @@ from easymesh.codec2 import (
 from easymesh.coordinator.client import MeshCoordinatorClient, build_coordinator_client
 from easymesh.coordinator.constants import DEFAULT_COORDINATOR_PORT
 from easymesh.network import get_lan_hostname
-from easymesh.node2.loadbalancing import (
+from easymesh.node.loadbalancing import (
     GroupingTopicLoadBalancer,
     RoundRobinLoadBalancer,
     ServiceLoadBalancer,
     TopicLoadBalancer,
     node_name_group_key,
 )
-from easymesh.node2.peer import PeerConnectionBuilder, PeerConnectionManager, PeerSelector
-from easymesh.node2.servers import PortScanTcpServerProvider, ServerProvider, ServersManager, TmpUnixServerProvider
-from easymesh.node2.service.caller import ServiceCaller
-from easymesh.node2.service.handlermanager import ServiceHandlerManager
-from easymesh.node2.service.types import ServiceRequest, ServiceResponse
-from easymesh.node2.topic import TopicListenerCallback, TopicListenerManager, TopicMessageHandler, TopicSender
-from easymesh.node2.topology import MeshTopologyManager, get_removed_nodes
+from easymesh.node.peer import PeerConnectionBuilder, PeerConnectionManager, PeerSelector
+from easymesh.node.servers import PortScanTcpServerProvider, ServerProvider, ServersManager, TmpUnixServerProvider
+from easymesh.node.service.caller import ServiceCaller
+from easymesh.node.service.handlermanager import ServiceHandlerManager
+from easymesh.node.service.types import ServiceRequest, ServiceResponse
+from easymesh.node.topic import TopicListenerCallback, TopicListenerManager, TopicMessageHandler, TopicSender
+from easymesh.node.topology import MeshTopologyManager, get_removed_nodes
 from easymesh.reqres import MeshTopologyBroadcast
 from easymesh.specs import MeshNodeSpec, NodeId
 from easymesh.types import Data, Host, Message, Port, ServerHost, Service, ServiceCallback, Topic
