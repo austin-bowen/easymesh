@@ -1,4 +1,5 @@
 from argparse import Namespace
+from typing import Literal
 
 from easymesh import Node
 from easymesh.argparse import get_node_arg_parser
@@ -32,6 +33,11 @@ from easymesh.node.topic import TopicListenerManager, TopicMessageHandler, Topic
 from easymesh.node.topology import MeshTopologyManager
 from easymesh.specs import NodeId
 from easymesh.types import Data, Host, Port, ServerHost
+
+try:
+    from easymesh.codec2 import msgpack_codec
+except ImportError:
+    msgpack_codec = None
 
 
 async def build_node_from_args(
@@ -78,11 +84,11 @@ async def build_node(
         allow_tcp_connections: bool = True,
         node_server_host: ServerHost = None,
         node_client_host: Host = None,
-        data_codec: Codec[Data] = pickle_codec,
-        topic_load_balancer: TopicLoadBalancer = None,
-        service_load_balancer: ServiceLoadBalancer = None,
+        data_codec: Codec[Data] | Literal['pickle', 'msgpack'] = 'pickle',
         authkey: bytes = None,
         authenticator: Authenticator = None,
+        topic_load_balancer: TopicLoadBalancer = None,
+        service_load_balancer: ServiceLoadBalancer = None,
         start: bool = True,
         **kwargs,
 ) -> Node:
@@ -106,6 +112,13 @@ async def build_node(
     connection_manager = PeerConnectionManager(
         PeerConnectionBuilder(authenticator),
     )
+
+    if data_codec == 'pickle':
+        data_codec = pickle_codec
+    elif data_codec == 'msgpack':
+        if not msgpack_codec:
+            raise ValueError('msgpack is not installed')
+        data_codec = msgpack_codec
 
     node_message_codec = build_node_message_codec(data_codec)
 
