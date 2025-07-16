@@ -1,7 +1,6 @@
 import asyncio
 import time
 from argparse import ArgumentParser, Namespace
-from typing import Optional
 
 from easymesh import Node, build_node
 from easymesh.argparse import add_authkey_arg, add_coordinator_arg
@@ -18,7 +17,7 @@ class SpeedTest:
             topic: Topic,
             message_size: int = 0,
             duration: float = 10.,
-            warmup: Optional[float] = 1.,
+            warmup: float | None = 1.,
     ) -> float:
         """Measure messages per second."""
 

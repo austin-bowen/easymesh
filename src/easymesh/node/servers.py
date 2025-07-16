@@ -4,7 +4,6 @@ import tempfile
 from abc import ABC, abstractmethod
 from asyncio import Server, StreamReader, StreamWriter
 from collections.abc import Awaitable, Callable, Iterable
-from typing import Optional
 
 from easymesh.asyncio import FullyAsyncStreamWriter, Reader, Writer
 from easymesh.specs import ConnectionSpec, IpConnectionSpec, UnixConnectionSpec
@@ -94,8 +93,8 @@ class TmpUnixServerProvider(ServerProvider):
 
     def __init__(
             self,
-            prefix: Optional[str] = 'mesh-node-server.',
-            suffix: Optional[str] = '.sock',
+            prefix: str | None = 'mesh-node-server.',
+            suffix: str | None = '.sock',
             dir=None,
             **kwargs,
     ):

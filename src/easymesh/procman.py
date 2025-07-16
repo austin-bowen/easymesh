@@ -1,21 +1,21 @@
 import signal
 from dataclasses import dataclass
 from subprocess import Popen, TimeoutExpired
-from typing import Any, Optional
+from typing import Any
 
 
 class ProcessManager:
     processes: list[Popen]
     """Processes managed by this manager."""
 
-    timeout: Optional[float]
+    timeout: float | None
     """Default timeout for stopping processes."""
 
     def __init__(
             self,
             python_exe: str = 'python',
             options: dict[str, Any] = None,
-            timeout: Optional[float] = 10.,
+            timeout: float | None = 10.,
     ):
         """
         ProcessManager makes it easy to start and stop numerous processes
@@ -119,8 +119,8 @@ class ProcessManager:
 
     def stop(
             self,
-            process: Optional[Popen] = None,
-            timeout: Optional[float] = None,
+            process: Popen | None = None,
+            timeout: float | None = None,
     ):
         """
         Stop one or all processes managed by this manager.

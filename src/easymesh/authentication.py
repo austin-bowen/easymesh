@@ -4,7 +4,7 @@ import secrets
 from abc import ABC, abstractmethod
 from asyncio import IncompleteReadError
 from collections.abc import Callable
-from typing import Optional, Union
+from typing import Union
 
 from easymesh.asyncio import Reader, Writer
 from easymesh.utils import require
@@ -36,7 +36,7 @@ class HMACAuthenticator(Authenticator):
             authkey: AuthKey,
             challenge_length: int = 32,
             digest='sha256',
-            timeout: Optional[float] = 10.,
+            timeout: float | None = 10.,
             get_random_bytes: Callable[[int], bytes] = secrets.token_bytes,
     ):
         require(authkey, 'authkey must not be empty.')
@@ -88,6 +88,6 @@ class AuthenticationError(Exception):
 
 
 def optional_authkey_authenticator(
-        authkey: Optional[AuthKey],
+        authkey: AuthKey | None,
 ) -> Union[HMACAuthenticator, NoAuthenticator]:
     return HMACAuthenticator(authkey) if authkey else NoAuthenticator()
