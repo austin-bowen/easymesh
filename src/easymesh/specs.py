@@ -1,6 +1,5 @@
 from collections.abc import Collection
 from dataclasses import dataclass, field
-from typing import Union
 from uuid import UUID, uuid4
 
 from easymesh.network import get_hostname
@@ -19,7 +18,7 @@ class UnixConnectionSpec:
     host: Host = field(default_factory=get_hostname)
 
 
-ConnectionSpec = Union[IpConnectionSpec, UnixConnectionSpec]
+ConnectionSpec = IpConnectionSpec | UnixConnectionSpec
 
 NodeName = str
 NodeUUID = UUID

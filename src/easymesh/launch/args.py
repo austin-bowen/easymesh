@@ -1,10 +1,9 @@
 from dataclasses import dataclass
-from typing import Union
 
 
 @dataclass
 class ProcessArgs:
-    args: Union[str, list[str]]
+    args: str | list[str]
 
     def append(self, arg: str) -> None:
         if isinstance(self.args, str):

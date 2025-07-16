@@ -1,6 +1,6 @@
 import pickle
 from abc import ABC, abstractmethod
-from typing import Any, Generic, Literal, TypeVar, Union
+from typing import Any, Generic, Literal, TypeVar
 
 from easymesh.asyncio import BufferWriter, Reader, Writer
 from easymesh.node.service.types import RequestId, ServiceRequest, ServiceResponse
@@ -112,7 +112,7 @@ class PickleCodec(Codec[Any], UsingLenHeader):
 pickle_codec = PickleCodec()
 
 if msgpack:
-    MsgpackTypes = Union[None, bool, int, float, str, bytes, bytearray, list, tuple, dict]
+    MsgpackTypes = None | bool | int | float | str | bytes | bytearray | list | tuple | dict
 
 
     class MsgpackCodec(Codec[MsgpackTypes], UsingLenHeader):

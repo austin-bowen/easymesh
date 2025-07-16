@@ -3,7 +3,7 @@ import traceback
 from asyncio import Lock, StreamWriter, Task
 from collections.abc import Awaitable, Iterable, Sized
 from io import BytesIO
-from typing import Protocol, Type, TypeVar, Union
+from typing import Protocol, Type, TypeVar
 
 from easymesh.types import Buffer, Host, Port
 
@@ -29,7 +29,7 @@ async def forever():
 async def log_error(
         awaitable: Awaitable[T],
         base_exception: Type[E] = Exception,
-) -> Union[T, E]:
+) -> T | E:
     """
     Returns the result of the awaitable, logging any exceptions.
 
@@ -50,7 +50,7 @@ async def log_error(
 async def many(
         awaitables: Iterable[Awaitable[T]],
         base_exception: Type[E] = Exception,
-) -> list[Union[T, E]]:
+) -> list[T | E]:
     """
     Await multiple awaitables in parallel and returns their results.
 

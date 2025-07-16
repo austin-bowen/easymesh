@@ -1,9 +1,9 @@
 from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Any, Awaitable, Callable, NamedTuple, Protocol, Union
+from typing import Any, Awaitable, Callable, NamedTuple, Protocol
 
 Host = str
-ServerHost = Union[Host, Sequence[Host], None]
+ServerHost = Host | Sequence[Host] | None
 Port = int
 
 

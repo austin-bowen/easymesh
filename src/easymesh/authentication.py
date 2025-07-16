@@ -4,7 +4,6 @@ import secrets
 from abc import ABC, abstractmethod
 from asyncio import IncompleteReadError
 from collections.abc import Callable
-from typing import Union
 
 from easymesh.asyncio import Reader, Writer
 from easymesh.utils import require
@@ -89,5 +88,5 @@ class AuthenticationError(Exception):
 
 def optional_authkey_authenticator(
         authkey: AuthKey | None,
-) -> Union[HMACAuthenticator, NoAuthenticator]:
+) -> HMACAuthenticator | NoAuthenticator:
     return HMACAuthenticator(authkey) if authkey else NoAuthenticator()
