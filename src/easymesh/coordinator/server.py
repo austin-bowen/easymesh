@@ -2,7 +2,6 @@ import asyncio
 from abc import abstractmethod
 from asyncio import StreamReader
 from codecs import StreamWriter
-from typing import Optional
 
 from easymesh.asyncio import FullyAsyncStreamWriter, close_ignoring_errors, many
 from easymesh.authentication import AuthKey, Authenticator, optional_authkey_authenticator
@@ -37,7 +36,7 @@ class RPCMeshCoordinatorServer(MeshCoordinatorServer):
         self.authenticator = authenticator
         self.log_heartbeats = log_heartbeats
 
-        self._node_clients: dict[RPC, Optional[NodeId]] = {}
+        self._node_clients: dict[RPC, NodeId | None] = {}
         self._nodes: dict[NodeId, MeshNodeSpec] = {}
 
     async def start(self) -> None:
@@ -98,6 +97,8 @@ class RPCMeshCoordinatorServer(MeshCoordinatorServer):
 
     async def _broadcast_topology(self) -> None:
         print(f'\nBroadcasting topology to {len(self._nodes)} nodes...')
+        if not self._nodes:
+            return
 
         nodes = sorted(self._nodes.values(), key=lambda n: n.id)
         print('Mesh nodes:')
