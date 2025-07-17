@@ -2,7 +2,7 @@ import pytest
 
 from easymesh.codec import FixedLengthIntCodec, LengthPrefixedStringCodec
 from easymesh.node.topic.codec import TopicMessageCodec
-from easymesh.node.topic.types import Message
+from easymesh.node.topic.types import TopicMessage
 from easymeshtest.test_codec import CodecTest
 
 
@@ -22,12 +22,12 @@ class TestTopicMessageCodec(CodecTest):
 
     @pytest.mark.asyncio
     async def test_encode_decode(self):
-        await self.assert_encode_decode(Message('topic', 'data'))
+        await self.assert_encode_decode(TopicMessage('topic', 'data'))
 
     @pytest.mark.asyncio
     async def test_encode(self):
         await self.assert_encode_writes(
-            Message('topic', 'data'),
+            TopicMessage('topic', 'data'),
             [
                 b'\x05',
                 b'topic',
@@ -40,5 +40,5 @@ class TestTopicMessageCodec(CodecTest):
     async def test_decode(self):
         await self.assert_decode_returns(
             b'\x05topic\x04data',
-            Message('topic', 'data'),
+            TopicMessage('topic', 'data'),
         )

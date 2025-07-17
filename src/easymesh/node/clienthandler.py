@@ -7,7 +7,7 @@ from easymesh.codec import NodeMessageCodec
 from easymesh.node.service.requesthandler import ServiceRequestHandler
 from easymesh.node.service.types import ServiceRequest
 from easymesh.node.topic.messagehandler import TopicMessageHandler
-from easymesh.node.topic.types import Message
+from easymesh.node.topic.types import TopicMessage
 
 logger = logging.getLogger(__name__)
 
@@ -39,7 +39,7 @@ class ClientHandler:
                 logger.debug(f'Closed connection from: {peer_name}')
                 return
 
-            if isinstance(obj, Message):
+            if isinstance(obj, TopicMessage):
                 await self.topic_message_handler.handle_message(obj)
             elif isinstance(obj, ServiceRequest):
                 asyncio.create_task(

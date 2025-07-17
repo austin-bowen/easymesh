@@ -5,7 +5,7 @@ from easymesh.codec import NodeMessageCodec
 from easymesh.node.peer import PeerConnectionManager, PeerSelector
 from easymesh.specs import MeshNodeSpec
 from easymesh.types import Data, Topic
-from easymesh.node.topic.types import Message
+from easymesh.node.topic.types import TopicMessage
 
 
 class TopicSender:
@@ -23,7 +23,7 @@ class TopicSender:
         # TODO handle case of self-sending more efficiently
 
         nodes = self.peer_selector.get_nodes_for_topic(topic)
-        data = await self.node_message_codec.encode_topic_message(Message(topic, data))
+        data = await self.node_message_codec.encode_topic_message(TopicMessage(topic, data))
 
         await many([
             log_error(self._send_to_one(n, data))

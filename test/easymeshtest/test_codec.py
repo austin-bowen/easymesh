@@ -16,7 +16,7 @@ from easymesh.codec import (
 from easymesh.node.service.codec import ServiceRequestCodec, ServiceResponseCodec
 from easymesh.node.service.types import ServiceRequest, ServiceResponse
 from easymesh.node.topic.codec import TopicMessageCodec
-from easymesh.node.topic.types import Message
+from easymesh.node.topic.types import TopicMessage
 
 
 class CodecTest:
@@ -197,7 +197,7 @@ class TestNodeMessageCodec:
 
     @pytest.mark.asyncio
     async def test_encode_topic_message(self):
-        message = Message('topic', 'data')
+        message = TopicMessage('topic', 'data')
         result = await self.codec.encode_topic_message(message)
         assert result == b't\x05topic\x04data'
 
@@ -222,7 +222,7 @@ class TestNodeMessageCodec:
         )
 
         message = await self.codec.decode_topic_message_or_service_request(reader)
-        assert message == Message('topic', 'data')
+        assert message == TopicMessage('topic', 'data')
 
         request = await self.codec.decode_topic_message_or_service_request(reader)
         assert request == ServiceRequest(id=1, service='service', data='data')

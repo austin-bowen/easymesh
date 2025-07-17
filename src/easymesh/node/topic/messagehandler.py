@@ -2,7 +2,7 @@ import logging
 
 from easymesh.asyncio import log_error
 from easymesh.node.topic.listenermanager import TopicListenerManager
-from easymesh.node.topic.types import Message
+from easymesh.node.topic.types import TopicMessage
 
 logger = logging.getLogger(__name__)
 
@@ -14,7 +14,7 @@ class TopicMessageHandler:
     ):
         self.listener_manager = listener_manager
 
-    async def handle_message(self, message: Message) -> None:
+    async def handle_message(self, message: TopicMessage) -> None:
         callback = self.listener_manager.get_listener(message.topic)
 
         if callback:
