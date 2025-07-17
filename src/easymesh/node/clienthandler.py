@@ -1,7 +1,7 @@
 import asyncio
 import logging
 
-from easymesh.asyncio import LockableWriter, Reader, Writer, close_ignoring_errors
+from easymesh.asyncio import LockableWriter, Reader, Writer
 from easymesh.authentication import Authenticator
 from easymesh.codec import NodeMessageCodec
 from easymesh.node.service.requesthandler import ServiceRequestHandler
@@ -34,23 +34,17 @@ class ClientHandler:
 
         while True:
             try:
-                message = await self.node_message_codec.decode_topic_message_or_service_request(reader)
-            except Exception as e:
-                if isinstance(e, EOFError):
-                    logger.debug(f'Closed connection from: {peer_name}')
-                else:
-                    logger.exception(f'Error reading from peer={peer_name}', exc_info=e)
-
-                async with writer:
-                    await close_ignoring_errors(writer)
+                obj = await self.node_message_codec.decode_topic_message_or_service_request(reader)
+            except EOFError:
+                logger.debug(f'Closed connection from: {peer_name}')
                 return
 
-            if isinstance(message, Message):
-                await self.topic_message_handler.handle_message(message)
-            elif isinstance(message, ServiceRequest):
+            if isinstance(obj, Message):
+                await self.topic_message_handler.handle_message(obj)
+            elif isinstance(obj, ServiceRequest):
                 asyncio.create_task(
-                    self.service_request_handler.handle_request(message, writer),
-                    name=f'Handle service request {message.id} from {peer_name}',
+                    self.service_request_handler.handle_request(obj, writer),
+                    name=f'Handle service request {obj.id} from {peer_name}',
                 )
             else:
                 raise RuntimeError('Unreachable code')
