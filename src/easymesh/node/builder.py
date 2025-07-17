@@ -9,11 +9,10 @@ from easymesh.codec import (
     FixedLengthIntCodec,
     LengthPrefixedStringCodec,
     NodeMessageCodec,
-    ServiceRequestCodec,
-    ServiceResponseCodec,
     TopicMessageCodec,
     pickle_codec,
 )
+from easymesh.node.service.codec import ServiceRequestCodec, ServiceResponseCodec
 from easymesh.coordinator.client import build_coordinator_client
 from easymesh.coordinator.constants import DEFAULT_COORDINATOR_PORT
 from easymesh.network import get_lan_hostname

@@ -10,12 +10,11 @@ from easymesh.codec import (
     MsgpackCodec,
     NodeMessageCodec,
     PickleCodec,
-    ServiceRequestCodec,
-    ServiceResponseCodec,
     TopicMessageCodec,
     msgpack_codec,
     pickle_codec,
 )
+from easymesh.node.service.codec import ServiceRequestCodec, ServiceResponseCodec
 from easymesh.node.service.types import ServiceRequest, ServiceResponse
 from easymesh.types import Message
 
