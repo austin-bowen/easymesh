@@ -15,11 +15,11 @@ async def main(args: Namespace):
 
     data = eval(args.data) if args.eval else args.data
 
-    if not args.no_wait:
-        print(f'Waiting for listeners on topic {args.topic!r}...')
-        await topic.wait_for_listener()
-
     while True:
+        if not args.no_wait and not await topic.has_listeners():
+            print(f'Waiting for listeners on topic {args.topic!r}...')
+            await topic.wait_for_listener()
+
         print(f'Sending topic={args.topic!r} data={args.data!r}')
 
         await topic.send(data)
