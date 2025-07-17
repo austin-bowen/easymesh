@@ -17,7 +17,7 @@ T = TypeVar('T')
 ByteOrder = Literal['big', 'little']
 DEFAULT_BYTE_ORDER: ByteOrder = 'little'
 
-DEFAULT_MAX_HEADER_LEN: int = 8
+DEFAULT_MAX_BYTE_LENGTH: int = 8
 
 DEFAULT_MAX_TOPIC_LENGTH: int = 256
 DEFAULT_TOPIC_ENCODING: str = 'utf-8'
@@ -31,114 +31,6 @@ class Codec(Generic[T], ABC):
     @abstractmethod
     async def decode(self, reader: Reader) -> T:
         ...
-
-
-class UsingLenHeader:
-    def __init__(
-            self,
-            byte_order: ByteOrder,
-            max_header_len: int,
-    ):
-        self.max_header_len = max_header_len
-        self.byte_order = byte_order
-
-    async def _read_data_with_len_header(self, reader: Reader) -> bytes:
-        header_len = (await reader.readexactly(1))[0]
-
-        if not header_len:
-            return b''
-
-        require(
-            header_len <= self.max_header_len,
-            f'Received header_len={header_len} > max_header_len={self.max_header_len}',
-        )
-
-        header = await reader.readexactly(header_len)
-        data_len = self._bytes_to_int(header)
-
-        return await reader.readexactly(data_len)
-
-    def _bytes_to_int(self, data: bytes) -> int:
-        return int.from_bytes(data, byteorder=self.byte_order, signed=False)
-
-    async def _write_data_with_len_header(self, writer: Writer, data: bytes) -> None:
-        data_len = len(data)
-
-        header_len = (data_len.bit_length() + 7) // 8
-
-        require(
-            header_len <= self.max_header_len,
-            f'Computed header_len={header_len} > max_header_len={self.max_header_len}',
-        )
-
-        writer.write(self._int_to_bytes(header_len, length=1))
-
-        if not data_len:
-            return
-
-        header = self._int_to_bytes(data_len, length=header_len)
-
-        writer.write(header)
-        writer.write(data)
-
-    def _int_to_bytes(self, value: int, length: int) -> bytes:
-        return value.to_bytes(length, byteorder=self.byte_order, signed=False)
-
-
-class PickleCodec(Codec[Any], UsingLenHeader):
-    def __init__(
-            self,
-            protocol: int = pickle.HIGHEST_PROTOCOL,
-            dump_kwargs: dict[str, Any] = None,
-            load_kwargs: dict[str, Any] = None,
-            byte_order: ByteOrder = DEFAULT_BYTE_ORDER,
-            max_header_len: int = DEFAULT_MAX_HEADER_LEN,
-    ):
-        UsingLenHeader.__init__(self, byte_order, max_header_len)
-
-        self.protocol = protocol
-        self.dump_kwargs = dump_kwargs or {}
-        self.load_kwargs = load_kwargs or {}
-
-    async def encode(self, writer: Writer, obj: T) -> None:
-        buffer = BufferWriter()
-        pickle.dump(obj, buffer, protocol=self.protocol, **self.dump_kwargs)
-        await self._write_data_with_len_header(writer, buffer)
-
-    async def decode(self, reader: Reader) -> T:
-        data = await self._read_data_with_len_header(reader)
-        return pickle.loads(data, **self.load_kwargs)
-
-
-pickle_codec = PickleCodec()
-
-if msgpack:
-    MsgpackTypes = None | bool | int | float | str | bytes | bytearray | list | tuple | dict
-
-
-    class MsgpackCodec(Codec[MsgpackTypes], UsingLenHeader):
-        def __init__(
-                self,
-                pack_kwargs: dict[str, Any] = None,
-                unpack_kwargs: dict[str, Any] = None,
-                byte_order: ByteOrder = DEFAULT_BYTE_ORDER,
-                max_header_len: int = DEFAULT_MAX_HEADER_LEN,
-        ):
-            UsingLenHeader.__init__(self, byte_order, max_header_len)
-
-            self.pack_kwargs = pack_kwargs or {}
-            self.unpack_kwargs = unpack_kwargs or {}
-
-        async def encode(self, writer: Writer, obj: T) -> None:
-            data = msgpack.packb(obj, **self.pack_kwargs)
-            await self._write_data_with_len_header(writer, data)
-
-        async def decode(self, reader: Reader) -> T:
-            data = await self._read_data_with_len_header(reader)
-            return msgpack.unpackb(data, **self.unpack_kwargs)
-
-
-    msgpack_codec = MsgpackCodec()
 
 
 class FixedLengthIntCodec(Codec[int]):
@@ -159,6 +51,60 @@ class FixedLengthIntCodec(Codec[int]):
     async def decode(self, reader: Reader) -> int:
         data = await reader.readexactly(self.length)
         return int.from_bytes(data, byteorder=self.byte_order, signed=self.signed)
+
+
+class VariableLengthIntCodec(Codec[int]):
+    def __init__(
+            self,
+            max_byte_length: int = DEFAULT_MAX_BYTE_LENGTH,
+            byte_order: ByteOrder = DEFAULT_BYTE_ORDER,
+            signed: bool = False,
+    ):
+        require(
+            0 < max_byte_length <= 255,
+            f'max_byte_length must be in range (0, 255]; got {max_byte_length}.',
+        )
+
+        self.max_byte_length = max_byte_length
+        self.byte_order = byte_order
+        self.signed = signed
+
+    async def encode(self, writer: Writer, value: int) -> None:
+        int_byte_length = byte_length(value)
+
+        require(
+            int_byte_length <= self.max_byte_length,
+            f'Computed byte_length={int_byte_length} > max_byte_length={self.max_byte_length}',
+        )
+
+        header = bytes([int_byte_length])
+        writer.write(header)
+
+        if int_byte_length > 0:
+            codec = self._build_codec(int_byte_length)
+            await codec.encode(writer, value)
+
+    async def decode(self, reader: Reader) -> int:
+        header = await reader.readexactly(1)
+
+        int_byte_length = header[0]
+        if int_byte_length == 0:
+            return 0
+
+        require(
+            int_byte_length <= self.max_byte_length,
+            f'Received byte_length={int_byte_length} > max_byte_length={self.max_byte_length}',
+        )
+
+        codec = self._build_codec(int_byte_length)
+        return await codec.decode(reader)
+
+    def _build_codec(self, length: int) -> FixedLengthIntCodec:
+        return FixedLengthIntCodec(
+            length,
+            byte_order=self.byte_order,
+            signed=self.signed,
+        )
 
 
 class LengthPrefixedStringCodec(Codec[str]):
@@ -183,6 +129,71 @@ class LengthPrefixedStringCodec(Codec[str]):
 
         data = await reader.readexactly(length)
         return data.decode(encoding=self.encoding)
+
+
+def byte_length(value: int) -> int:
+    """Returns the number of bytes required to represent an integer."""
+    return (value.bit_length() + 7) // 8
+
+
+class PickleCodec(Codec[Any]):
+    def __init__(
+            self,
+            protocol: int = pickle.HIGHEST_PROTOCOL,
+            dump_kwargs: dict[str, Any] = None,
+            load_kwargs: dict[str, Any] = None,
+            len_header_bytes: int = 4,
+            len_header_codec: Codec[int] = None,
+    ):
+        self.protocol = protocol
+        self.dump_kwargs = dump_kwargs or {}
+        self.load_kwargs = load_kwargs or {}
+        self.len_header_codec = len_header_codec or FixedLengthIntCodec(len_header_bytes)
+
+    async def encode(self, writer: Writer, obj: T) -> None:
+        buffer = BufferWriter()
+        pickle.dump(obj, buffer, protocol=self.protocol, **self.dump_kwargs)
+
+        await self.len_header_codec.encode(writer, len(buffer))
+        writer.write(buffer)
+
+    async def decode(self, reader: Reader) -> T:
+        data_len = await self.len_header_codec.decode(reader)
+        data = await reader.readexactly(data_len)
+        return pickle.loads(data, **self.load_kwargs)
+
+
+pickle_codec = PickleCodec()
+"""Pickle codec with default settings. Encoded data can be up to 4 GiB in size."""
+
+if msgpack:
+    MsgpackTypes = None | bool | int | float | str | bytes | bytearray | list | tuple | dict
+
+
+    class MsgpackCodec(Codec[MsgpackTypes]):
+        def __init__(
+                self,
+                pack_kwargs: dict[str, Any] = None,
+                unpack_kwargs: dict[str, Any] = None,
+                len_header_bytes: int = 4,
+                len_header_codec: Codec[int] = None,
+        ):
+            self.pack_kwargs = pack_kwargs or {}
+            self.unpack_kwargs = unpack_kwargs or {}
+            self.len_header_codec = len_header_codec or FixedLengthIntCodec(len_header_bytes)
+
+        async def encode(self, writer: Writer, obj: T) -> None:
+            data = msgpack.packb(obj, **self.pack_kwargs)
+            await self.len_header_codec.encode(writer, len(data))
+            writer.write(data)
+
+        async def decode(self, reader: Reader) -> T:
+            data_len = await self.len_header_codec.decode(reader)
+            data = await reader.readexactly(data_len)
+            return msgpack.unpackb(data, **self.unpack_kwargs)
+
+
+    msgpack_codec = MsgpackCodec()
 
 
 class TopicMessageCodec(Codec[Message]):

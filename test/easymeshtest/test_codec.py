@@ -13,6 +13,8 @@ from easymesh.codec import (
     ServiceRequestCodec,
     ServiceResponseCodec,
     TopicMessageCodec,
+    msgpack_codec,
+    pickle_codec,
 )
 from easymesh.node.service.types import ServiceRequest, ServiceResponse
 from easymesh.types import Message
@@ -55,7 +57,7 @@ class TestPickleCodec(CodecTest):
     codec: PickleCodec
 
     def setup_method(self):
-        self.codec = PickleCodec()
+        self.codec = pickle_codec
 
     @pytest.mark.asyncio
     async def test_encode_decode(self):
@@ -67,7 +69,7 @@ class TestMsgpackCodec(CodecTest):
     codec: MsgpackCodec
 
     def setup_method(self):
-        self.codec = MsgpackCodec()
+        self.codec = msgpack_codec
 
     @pytest.mark.asyncio
     async def test_encode_decode(self):
