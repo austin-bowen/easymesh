@@ -1,5 +1,6 @@
+import logging
 from asyncio import Lock
-from collections.abc import Awaitable, Iterable
+from collections.abc import Iterable
 from typing import NamedTuple
 
 from easymesh.asyncio import (
@@ -16,6 +17,8 @@ from easymesh.node.topology import MeshTopologyManager
 from easymesh.specs import ConnectionSpec, IpConnectionSpec, MeshNodeSpec, NodeId, UnixConnectionSpec
 from easymesh.types import Host, Service, Topic
 
+logger = logging.getLogger(__name__)
+
 
 class PeerConnection(NamedTuple):
     reader: Reader
@@ -24,6 +27,9 @@ class PeerConnection(NamedTuple):
     async def close(self) -> None:
         self.writer.close()
         await self.writer.wait_closed()
+
+    def is_closing(self) -> bool:
+        return self.writer.is_closing()
 
 
 class PeerConnectionBuilder:
@@ -37,7 +43,7 @@ class PeerConnectionBuilder:
             try:
                 reader_writer = await self._get_connection(conn_spec)
             except ConnectionError as e:
-                print(f'Error connecting to {conn_spec}: {e}')
+                logger.exception(f'Error connecting to {conn_spec}', exc_info=e)
                 continue
 
             if reader_writer is not None:
@@ -75,84 +81,33 @@ class PeerConnectionManager:
 
     async def get_connection(self, node: MeshNodeSpec) -> PeerConnection:
         async with self._connections_lock:
-            connection = self._connections.get(node.id, None)
+            connection = await self._get_cached_connection(node)
             if connection:
                 return connection
 
             reader, writer = await self.conn_builder.build(node.connection_specs)
 
-            reader = self._Reader(reader, self, node)
-            writer = self._Writer(writer, self, node)
             writer = LockableWriter(writer)
 
             connection = PeerConnection(reader, writer)
             self._connections[node.id] = connection
             return connection
 
-    async def close_connection(self, node: MeshNodeSpec) -> None:
-        async with self._connections_lock:
-            connection = self._connections.pop(node.id, None)
+    async def _get_cached_connection(self, node: MeshNodeSpec) -> PeerConnection | None:
+        connection = self._connections.get(node.id, None)
+        if not connection:
+            return None
 
+        if connection.is_closing():
+            await self.close_connection(node)
+            return None
+
+        return connection
+
+    async def close_connection(self, node: MeshNodeSpec) -> None:
+        connection = self._connections.pop(node.id, None)
         if connection:
             await connection.close()
-
-    class _Managed:
-        def __init__(self, manager: 'PeerConnectionManager', node: MeshNodeSpec):
-            self.manager = manager
-            self.node = node
-
-        async def _close_on_error(self, awaitable: Awaitable):
-            try:
-                return await awaitable
-            except Exception:
-                await self.manager.close_connection(self.node)
-                raise
-
-    class _Reader(_Managed, Reader):
-        def __init__(
-                self,
-                reader: Reader,
-                manager: 'PeerConnectionManager',
-                node: MeshNodeSpec,
-        ):
-            super().__init__(manager, node)
-            self.reader = reader
-
-        async def readexactly(self, n: int) -> bytes:
-            return await self._close_on_error(
-                self.reader.readexactly(n)
-            )
-
-        async def readuntil(self, separator: bytes) -> bytes:
-            return await self._close_on_error(
-                self.reader.readuntil(separator)
-            )
-
-    class _Writer(_Managed, Writer):
-        def __init__(
-                self,
-                writer: Writer,
-                manager: 'PeerConnectionManager',
-                node: MeshNodeSpec,
-        ):
-            super().__init__(manager, node)
-            self.writer = writer
-
-        async def write(self, data: bytes) -> None:
-            await self._close_on_error(
-                self.writer.write(data)
-            )
-
-        async def drain(self) -> None:
-            await self._close_on_error(
-                self.writer.drain()
-            )
-
-        def close(self) -> None:
-            self.writer.close()
-
-        async def wait_closed(self) -> None:
-            await self.writer.wait_closed()
 
 
 class PeerSelector:
