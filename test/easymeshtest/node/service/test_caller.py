@@ -47,7 +47,7 @@ class TestServiceCaller:
 
         assert self.service_caller._next_request_id == 1
         self._assert_no_pending_requests()
-        assert self.connection.writer.write.await_count == 1
+        assert self.connection.writer.write.call_count == 1
         assert self.connection.writer.drain.await_count == 1
 
     @pytest.mark.asyncio
@@ -60,7 +60,7 @@ class TestServiceCaller:
             await self.service_caller.call('service', 'data')
 
         self._assert_no_pending_requests()
-        assert self.connection.writer.write.await_count == 1
+        assert self.connection.writer.write.call_count == 1
         assert self.connection.writer.drain.await_count == 1
 
     @pytest.mark.asyncio

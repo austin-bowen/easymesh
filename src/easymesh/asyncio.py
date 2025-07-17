@@ -118,7 +118,7 @@ class Reader(Protocol):
 
 
 class Writer(Protocol):
-    async def write(self, data: bytes) -> None:
+    def write(self, data: bytes) -> None:
         ...
 
     async def drain(self) -> None:
@@ -137,11 +137,12 @@ class Writer(Protocol):
         ...
 
 
+# TODO delete this
 class FullyAsyncStreamWriter(Writer):
     def __init__(self, writer: StreamWriter):
         self.writer = writer
 
-    async def write(self, data: bytes) -> None:
+    def write(self, data: bytes) -> None:
         self.writer.write(data)
 
     async def drain(self) -> None:
@@ -176,9 +177,9 @@ class LockableWriter(Writer):
     async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
         self._lock.release()
 
-    async def write(self, data: bytes) -> None:
+    def write(self, data: bytes) -> None:
         self.require_locked()
-        await self.writer.write(data)
+        self.writer.write(data)
 
     async def drain(self) -> None:
         await self.writer.drain()
@@ -214,7 +215,7 @@ class BufferReader(Reader):
 
 
 class BufferWriter(bytearray, Buffer, Writer):
-    async def write(self, data: bytes) -> None:
+    def write(self, data: bytes) -> None:
         self.extend(data)
 
     async def drain(self) -> None:

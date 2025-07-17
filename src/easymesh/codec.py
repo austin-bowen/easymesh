@@ -71,15 +71,15 @@ class UsingLenHeader:
             f'Computed header_len={header_len} > max_header_len={self.max_header_len}',
         )
 
-        await writer.write(self._int_to_bytes(header_len, length=1))
+        writer.write(self._int_to_bytes(header_len, length=1))
 
         if not data_len:
             return
 
         header = self._int_to_bytes(data_len, length=header_len)
 
-        await writer.write(header)
-        await writer.write(data)
+        writer.write(header)
+        writer.write(data)
 
     def _int_to_bytes(self, value: int, length: int) -> bytes:
         return value.to_bytes(length, byteorder=self.byte_order, signed=False)
@@ -153,7 +153,7 @@ class FixedLengthIntCodec(Codec[int]):
 
     async def encode(self, writer: Writer, value: int) -> None:
         data = value.to_bytes(self.length, byteorder=self.byte_order, signed=self.signed)
-        await writer.write(data)
+        writer.write(data)
 
     async def decode(self, reader: Reader) -> int:
         data = await reader.readexactly(self.length)
@@ -173,7 +173,7 @@ class LengthPrefixedStringCodec(Codec[str]):
         data = data.encode(encoding=self.encoding)
         await self.len_prefix_codec.encode(writer, len(data))
         if data:
-            await writer.write(data)
+            writer.write(data)
 
     async def decode(self, reader: Reader) -> str:
         length = await self.len_prefix_codec.decode(reader)
@@ -245,10 +245,10 @@ class ServiceResponseCodec(Codec[ServiceResponse]):
         await self.id_codec.encode(writer, response.id)
 
         if response.error:
-            await writer.write(self.error_status_code)
+            writer.write(self.error_status_code)
             await self.error_codec.encode(writer, response.error)
         else:
-            await writer.write(self.success_status_code)
+            writer.write(self.success_status_code)
             await self.data_codec.encode(writer, response.data)
 
     async def decode(self, reader: Reader) -> ServiceResponse:
@@ -287,13 +287,13 @@ class NodeMessageCodec:
 
     async def encode_topic_message(self, message: Message) -> Buffer:
         buffer = BufferWriter()
-        await buffer.write(self.topic_message_prefix)
+        buffer.write(self.topic_message_prefix)
         await self.topic_message_codec.encode(buffer, message)
         return buffer
 
     async def encode_service_request(self, request: ServiceRequest) -> Buffer:
         buffer = BufferWriter()
-        await buffer.write(self.service_request_prefix)
+        buffer.write(self.service_request_prefix)
         await self.service_request_codec.encode(buffer, request)
         return buffer
 

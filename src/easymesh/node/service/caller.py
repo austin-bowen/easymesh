@@ -47,7 +47,7 @@ class ServiceCaller:
             request = await self.node_message_codec.encode_service_request(request)
 
             async with connection.writer as writer:
-                await writer.write(request)
+                writer.write(request)
                 await writer.drain()
 
             response: ServiceResponse = await response_future

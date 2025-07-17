@@ -40,7 +40,7 @@ class TopicSender:
         connection = await self.connection_manager.get_connection(node)
 
         async with connection.writer as writer:
-            await writer.write(data)
+            writer.write(data)
             await writer.drain()
 
 
