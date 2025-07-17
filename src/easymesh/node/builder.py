@@ -11,8 +11,6 @@ from easymesh.codec import (
     NodeMessageCodec,
     pickle_codec,
 )
-from easymesh.node.topic.codec import TopicMessageCodec
-from easymesh.node.service.codec import ServiceRequestCodec, ServiceResponseCodec
 from easymesh.coordinator.client import build_coordinator_client
 from easymesh.coordinator.constants import DEFAULT_COORDINATOR_PORT
 from easymesh.network import get_lan_hostname
@@ -27,9 +25,12 @@ from easymesh.node.loadbalancing import (
 from easymesh.node.peer import PeerConnectionBuilder, PeerConnectionManager, PeerSelector
 from easymesh.node.servers import PortScanTcpServerProvider, ServerProvider, ServersManager, TmpUnixServerProvider
 from easymesh.node.service.caller import ServiceCaller
+from easymesh.node.service.codec import ServiceRequestCodec, ServiceResponseCodec
 from easymesh.node.service.handlermanager import ServiceHandlerManager
-from easymesh.node.topic.messagehandler import TopicMessageHandler
+from easymesh.node.service.requesthandler import ServiceRequestHandler
+from easymesh.node.topic.codec import TopicMessageCodec
 from easymesh.node.topic.listenermanager import TopicListenerManager
+from easymesh.node.topic.messagehandler import TopicMessageHandler
 from easymesh.node.topic.sender import TopicSender
 from easymesh.node.topology import MeshTopologyManager
 from easymesh.specs import NodeId
@@ -129,12 +130,16 @@ async def build_node(
     topic_message_handler = TopicMessageHandler(topic_listener_manager)
 
     service_handler_manager = ServiceHandlerManager()
+    service_request_handler = ServiceRequestHandler(
+        service_handler_manager,
+        node_message_codec,
+    )
 
     client_handler = ClientHandler(
         authenticator,
         node_message_codec,
         topic_message_handler,
-        service_handler_manager,
+        service_request_handler,
     )
 
     server_providers = build_server_providers(
