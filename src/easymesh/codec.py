@@ -81,8 +81,8 @@ class VariableLengthIntCodec(Codec[int]):
         writer.write(header)
 
         if int_byte_length > 0:
-            codec = self._build_codec(int_byte_length)
-            await codec.encode(writer, value)
+            data = value.to_bytes(int_byte_length, byteorder=self.byte_order, signed=self.signed)
+            writer.write(data)
 
     async def decode(self, reader: Reader) -> int:
         header = await reader.readexactly(1)
@@ -96,15 +96,8 @@ class VariableLengthIntCodec(Codec[int]):
             f'Received byte_length={int_byte_length} > max_byte_length={self.max_byte_length}',
         )
 
-        codec = self._build_codec(int_byte_length)
-        return await codec.decode(reader)
-
-    def _build_codec(self, length: int) -> FixedLengthIntCodec:
-        return FixedLengthIntCodec(
-            length,
-            byte_order=self.byte_order,
-            signed=self.signed,
-        )
+        data = await reader.readexactly(int_byte_length)
+        return int.from_bytes(data, byteorder=self.byte_order, signed=self.signed)
 
 
 class LengthPrefixedStringCodec(Codec[str]):
