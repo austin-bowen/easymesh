@@ -130,6 +130,7 @@ async def build_node(
     service_handler_manager = ServiceHandlerManager()
 
     client_handler = ClientHandler(
+        authenticator,
         node_message_codec,
         topic_message_handler,
         service_handler_manager,
