@@ -1,5 +1,5 @@
 import logging
-from asyncio import Lock
+from asyncio import Lock, open_connection, open_unix_connection
 from collections.abc import Iterable
 from typing import NamedTuple
 
@@ -7,8 +7,6 @@ from easymesh.asyncio import (
     LockableWriter,
     Reader,
     Writer,
-    open_connection,
-    open_unix_connection,
 )
 from easymesh.authentication import Authenticator
 from easymesh.network import get_hostname

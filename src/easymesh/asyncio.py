@@ -1,11 +1,11 @@
 import asyncio
 import traceback
-from asyncio import Lock, StreamWriter, Task
+from asyncio import Lock, Task
 from collections.abc import Awaitable, Iterable, Sized
 from io import BytesIO
 from typing import Protocol, Type, TypeVar
 
-from easymesh.types import Buffer, Host, Port
+from easymesh.types import Buffer
 
 T = TypeVar('T')
 E = TypeVar('E', bound=BaseException)
@@ -93,22 +93,6 @@ def noop():
     return asyncio.sleep(0)
 
 
-async def open_connection(
-        host: Host = None,
-        port: Port = None,
-        **kwargs,
-) -> tuple['Reader', 'Writer']:
-    reader, writer = await asyncio.open_connection(host, port, **kwargs)
-    writer = FullyAsyncStreamWriter(writer)
-    return reader, writer
-
-
-async def open_unix_connection(path: str = None, **kwargs) -> tuple['Reader', 'Writer']:
-    reader, writer = await asyncio.open_unix_connection(path, **kwargs)
-    writer = FullyAsyncStreamWriter(writer)
-    return reader, writer
-
-
 class Reader(Protocol):
     async def readexactly(self, n: int) -> bytes:
         ...
@@ -135,30 +119,6 @@ class Writer(Protocol):
 
     def get_extra_info(self, name: str, default=None):
         ...
-
-
-# TODO delete this
-class FullyAsyncStreamWriter(Writer):
-    def __init__(self, writer: StreamWriter):
-        self.writer = writer
-
-    def write(self, data: bytes) -> None:
-        self.writer.write(data)
-
-    async def drain(self) -> None:
-        await self.writer.drain()
-
-    def close(self) -> None:
-        self.writer.close()
-
-    def is_closing(self) -> bool:
-        return self.writer.is_closing()
-
-    async def wait_closed(self) -> None:
-        await self.writer.wait_closed()
-
-    def get_extra_info(self, name: str, default=None):
-        return self.writer.get_extra_info(name, default)
 
 
 class LockableWriter(Writer):

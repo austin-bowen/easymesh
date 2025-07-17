@@ -1,9 +1,8 @@
 import asyncio
 from abc import ABC, abstractmethod
-from asyncio import Lock, wait_for
+from asyncio import Lock, open_connection, wait_for
 from collections.abc import Awaitable, Callable
 
-from easymesh.asyncio import open_connection
 from easymesh.authentication import Authenticator, NoAuthenticator
 from easymesh.coordinator.constants import DEFAULT_COORDINATOR_PORT
 from easymesh.objectio import CodecObjectReader, CodecObjectWriter, ObjectIO

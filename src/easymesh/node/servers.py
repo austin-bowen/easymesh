@@ -5,7 +5,7 @@ from abc import ABC, abstractmethod
 from asyncio import Server, StreamReader, StreamWriter
 from collections.abc import Awaitable, Callable, Iterable
 
-from easymesh.asyncio import FullyAsyncStreamWriter, Reader, Writer
+from easymesh.asyncio import Reader, Writer
 from easymesh.specs import ConnectionSpec, IpConnectionSpec, UnixConnectionSpec
 from easymesh.types import Host, Port, ServerHost
 
@@ -156,7 +156,7 @@ class ServersManager:
         if self._connection_specs:
             raise RuntimeError('Servers have already been started.')
 
-        client_connected_cb = _wrap_callback(self.client_connected_cb)
+        client_connected_cb = _close_on_error(self.client_connected_cb)
 
         for provider in self.server_providers:
             try:
@@ -180,12 +180,10 @@ class UnsupportedProviderError(Exception):
         )
 
 
-def _wrap_callback(
+def _close_on_error(
         callback: ClientConnectedCallback,
 ) -> Callable[[StreamReader, StreamWriter], Awaitable[None]]:
     async def wrapped_callback(reader: StreamReader, writer: StreamWriter) -> None:
-        writer = FullyAsyncStreamWriter(writer)
-
         try:
             await callback(reader, writer)
         except Exception as e:
