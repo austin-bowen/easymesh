@@ -192,7 +192,7 @@ def _wrap_callback(
         except Exception as e:
             logger.exception('Error in client connected callback', exc_info=e)
         finally:
-            await writer.close()
+            writer.close()
             await writer.wait_closed()
 
     return wrapped_callback

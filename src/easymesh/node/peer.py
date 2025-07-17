@@ -22,7 +22,7 @@ class PeerConnection(NamedTuple):
     writer: LockableWriter
 
     async def close(self) -> None:
-        await self.writer.close()
+        self.writer.close()
         await self.writer.wait_closed()
 
 
@@ -148,8 +148,8 @@ class PeerConnectionManager:
                 self.writer.drain()
             )
 
-        async def close(self) -> None:
-            await self.writer.close()
+        def close(self) -> None:
+            self.writer.close()
 
         async def wait_closed(self) -> None:
             await self.writer.wait_closed()

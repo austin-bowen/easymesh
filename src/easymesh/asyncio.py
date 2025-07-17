@@ -14,7 +14,7 @@ E = TypeVar('E', bound=BaseException)
 async def close_ignoring_errors(writer: 'Writer') -> None:
     """Closes the writer ignoring any ConnectionErrors."""
     try:
-        await writer.close()
+        writer.close()
         await writer.wait_closed()
     except ConnectionError:
         pass
@@ -124,7 +124,7 @@ class Writer(Protocol):
     async def drain(self) -> None:
         ...
 
-    async def close(self) -> None:
+    def close(self) -> None:
         ...
 
     async def wait_closed(self) -> None:
@@ -144,7 +144,7 @@ class FullyAsyncStreamWriter(Writer):
     async def drain(self) -> None:
         await self.writer.drain()
 
-    async def close(self) -> None:
+    def close(self) -> None:
         self.writer.close()
 
     async def wait_closed(self) -> None:
@@ -177,8 +177,8 @@ class LockableWriter(Writer):
     async def drain(self) -> None:
         await self.writer.drain()
 
-    async def close(self) -> None:
-        await self.writer.close()
+    def close(self) -> None:
+        self.writer.close()
 
     async def wait_closed(self) -> None:
         await self.writer.wait_closed()
@@ -211,7 +211,7 @@ class BufferWriter(bytearray, Buffer, Writer):
     async def drain(self) -> None:
         pass
 
-    async def close(self) -> None:
+    def close(self) -> None:
         pass
 
     async def wait_closed(self) -> None:
