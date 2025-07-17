@@ -26,7 +26,7 @@ class CodecTest:
         await self.codec.encode(writer, value)
 
         written_data = b''.join(
-            args.args[0] for args in writer.write.await_args_list
+            args.args[0] for args in writer.write.call_args_list
         )
 
         # Simulate a stream with repeated data
@@ -43,7 +43,7 @@ class CodecTest:
         writer = AsyncMock(spec=Writer)
         await self.codec.encode(writer, value)
         expected_calls = [call(data) for data in expected]
-        assert writer.write.await_args_list == expected_calls
+        assert writer.write.call_args_list == expected_calls
 
     async def assert_decode_returns(self, data: bytes, expected) -> None:
         reader = BufferReader(data)

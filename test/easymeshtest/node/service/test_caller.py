@@ -69,7 +69,7 @@ class TestServiceCaller:
             await self.service_caller.call('unknown_service', 'data')
 
         self._assert_no_pending_requests()
-        self.connection.writer.write.assert_not_awaited()
+        self.connection.writer.write.assert_not_called()
         self.connection.writer.drain.assert_not_awaited()
 
     @pytest.mark.asyncio

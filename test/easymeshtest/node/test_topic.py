@@ -55,5 +55,5 @@ class TestTopicSender:
         self.node_message_codec.encode_topic_message.assert_awaited_once_with((topic, data))
 
         for connection in self.connections.values():
-            connection.writer.write.assert_awaited_once_with(self.encoded_data)
+            connection.writer.write.assert_called_once_with(self.encoded_data)
             connection.writer.drain.assert_awaited_once()
