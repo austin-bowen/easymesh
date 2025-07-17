@@ -18,7 +18,7 @@ class ServerProvider(ABC):
     @abstractmethod
     async def start_server(
             self,
-            client_connected_cb: ClientConnectedCallback,
+            client_connected_cb,
     ) -> tuple[Server, ConnectionSpec]:
         """Raises ``UnsupportedProviderError`` if not supported on the system."""
         ...
@@ -62,9 +62,8 @@ class PortScanTcpServerProvider(ServerProvider):
 
     async def start_server(
             self,
-            client_connected_cb: ClientConnectedCallback,
+            client_connected_cb,
     ) -> tuple[Server, ConnectionSpec]:
-        client_connected_cb = _wrap_callback(client_connected_cb)
         last_error = None
 
         for port in range(self.start_port, self.end_port + 1):
@@ -119,10 +118,8 @@ class TmpUnixServerProvider(ServerProvider):
 
     async def start_server(
             self,
-            client_connected_cb: ClientConnectedCallback,
+            client_connected_cb,
     ) -> tuple[Server, ConnectionSpec]:
-        client_connected_cb = _wrap_callback(client_connected_cb)
-
         with tempfile.NamedTemporaryFile(
                 prefix=self.prefix,
                 suffix=self.suffix,
@@ -159,9 +156,11 @@ class ServersManager:
         if self._connection_specs:
             raise RuntimeError('Servers have already been started.')
 
+        client_connected_cb = _wrap_callback(self.client_connected_cb)
+
         for provider in self.server_providers:
             try:
-                server, connection_spec = await provider.start_server(self.client_connected_cb)
+                server, connection_spec = await provider.start_server(client_connected_cb)
             except UnsupportedProviderError as e:
                 logger.exception(f'Failed to start server using provider={provider}', exc_info=e)
             else:
