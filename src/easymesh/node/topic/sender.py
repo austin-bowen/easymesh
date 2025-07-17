@@ -1,7 +1,7 @@
 from typing_extensions import Buffer
 
 from easymesh.asyncio import log_error, many
-from easymesh.codec import NodeMessageCodec
+from easymesh.node.codec import NodeMessageCodec
 from easymesh.node.peer import PeerConnectionManager, PeerSelector
 from easymesh.specs import MeshNodeSpec
 from easymesh.types import Data, Topic

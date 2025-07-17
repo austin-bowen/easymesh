@@ -6,7 +6,7 @@ from contextlib import contextmanager
 from weakref import WeakKeyDictionary
 
 from easymesh.asyncio import Reader
-from easymesh.codec import NodeMessageCodec
+from easymesh.node.codec import NodeMessageCodec
 from easymesh.node.peer import PeerConnectionManager, PeerSelector
 from easymesh.node.service.types import RequestId, ServiceRequest, ServiceResponse
 from easymesh.types import Data

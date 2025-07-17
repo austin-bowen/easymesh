@@ -3,7 +3,7 @@ import logging
 
 from easymesh.asyncio import LockableWriter, Reader, Writer
 from easymesh.authentication import Authenticator
-from easymesh.codec import NodeMessageCodec
+from easymesh.node.codec import NodeMessageCodec
 from easymesh.node.service.requesthandler import ServiceRequestHandler
 from easymesh.node.service.types import ServiceRequest
 from easymesh.node.topic.messagehandler import TopicMessageHandler

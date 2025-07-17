@@ -1,7 +1,7 @@
 import logging
 
 from easymesh.asyncio import LockableWriter
-from easymesh.codec import NodeMessageCodec
+from easymesh.node.codec import NodeMessageCodec
 from easymesh.node.service.handlermanager import ServiceHandlerManager
 from easymesh.node.service.types import ServiceRequest, ServiceResponse
 

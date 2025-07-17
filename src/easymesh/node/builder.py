@@ -8,9 +8,9 @@ from easymesh.codec import (
     Codec,
     FixedLengthIntCodec,
     LengthPrefixedStringCodec,
-    NodeMessageCodec,
     pickle_codec,
 )
+from easymesh.node.codec import NodeMessageCodec
 from easymesh.coordinator.client import build_coordinator_client
 from easymesh.coordinator.constants import DEFAULT_COORDINATOR_PORT
 from easymesh.network import get_lan_hostname
