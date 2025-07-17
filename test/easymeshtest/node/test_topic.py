@@ -5,7 +5,7 @@ import pytest
 from easymesh.codec import NodeMessageCodec
 from easymesh.node.peer import PeerConnection, PeerConnectionManager, PeerSelector
 from easymesh.asyncio import LockableWriter
-from easymesh.node.topic import TopicSender
+from easymesh.node.topic.sender import TopicSender
 from easymesh.specs import MeshNodeSpec
 
 

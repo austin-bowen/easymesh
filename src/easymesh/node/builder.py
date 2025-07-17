@@ -9,9 +9,9 @@ from easymesh.codec import (
     FixedLengthIntCodec,
     LengthPrefixedStringCodec,
     NodeMessageCodec,
-    TopicMessageCodec,
     pickle_codec,
 )
+from easymesh.node.topic.codec import TopicMessageCodec
 from easymesh.node.service.codec import ServiceRequestCodec, ServiceResponseCodec
 from easymesh.coordinator.client import build_coordinator_client
 from easymesh.coordinator.constants import DEFAULT_COORDINATOR_PORT
@@ -28,7 +28,9 @@ from easymesh.node.peer import PeerConnectionBuilder, PeerConnectionManager, Pee
 from easymesh.node.servers import PortScanTcpServerProvider, ServerProvider, ServersManager, TmpUnixServerProvider
 from easymesh.node.service.caller import ServiceCaller
 from easymesh.node.service.handlermanager import ServiceHandlerManager
-from easymesh.node.topic import TopicListenerManager, TopicMessageHandler, TopicSender
+from easymesh.node.topic.messagehandler import TopicMessageHandler
+from easymesh.node.topic.listenermanager import TopicListenerManager
+from easymesh.node.topic.sender import TopicSender
 from easymesh.node.topology import MeshTopologyManager
 from easymesh.specs import NodeId
 from easymesh.types import Data, Host, Port, ServerHost

@@ -10,7 +10,8 @@ from easymesh.node.servers import ServersManager
 from easymesh.node.service.caller import ServiceCaller
 from easymesh.node.service.handlermanager import ServiceHandlerManager
 from easymesh.node.service.types import ServiceResponse
-from easymesh.node.topic import TopicListenerCallback, TopicListenerManager, TopicSender
+from easymesh.node.topic.listenermanager import TopicListenerCallback, TopicListenerManager
+from easymesh.node.topic.sender import TopicSender
 from easymesh.node.topology import MeshTopologyManager, get_removed_nodes
 from easymesh.reqres import MeshTopologyBroadcast
 from easymesh.specs import MeshNodeSpec, NodeId

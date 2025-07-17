@@ -1,6 +1,6 @@
 from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Any, Awaitable, Callable, NamedTuple, Protocol
+from typing import Any, Awaitable, Callable, Protocol
 
 Host = str
 ServerHost = Host | Sequence[Host] | None
@@ -19,12 +19,6 @@ class Endpoint:
 Topic = str
 Data = Any
 TopicCallback = Callable[[Topic, Data], None]
-
-
-class Message(NamedTuple):
-    topic: Topic
-    data: Data
-
 
 Service = str
 ServiceCallback = Callable[[Service, Data], Awaitable[Data]]

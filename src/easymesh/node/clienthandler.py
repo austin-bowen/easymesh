@@ -6,8 +6,8 @@ from easymesh.authentication import Authenticator
 from easymesh.codec import NodeMessageCodec
 from easymesh.node.service.handlermanager import ServiceHandlerManager
 from easymesh.node.service.types import ServiceRequest, ServiceResponse
-from easymesh.node.topic import TopicMessageHandler
-from easymesh.types import Message
+from easymesh.node.topic.messagehandler import TopicMessageHandler
+from easymesh.node.topic.types import Message
 
 logger = logging.getLogger(__name__)
 
@@ -56,6 +56,7 @@ class ClientHandler:
             else:
                 raise RuntimeError('Unreachable code')
 
+    # TODO move into its own thing
     async def _handle_service_request(
             self,
             request: ServiceRequest,
