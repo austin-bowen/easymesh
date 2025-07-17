@@ -127,6 +127,9 @@ class Writer(Protocol):
     def close(self) -> None:
         ...
 
+    def is_closing(self) -> bool:
+        ...
+
     async def wait_closed(self) -> None:
         ...
 
@@ -146,6 +149,9 @@ class FullyAsyncStreamWriter(Writer):
 
     def close(self) -> None:
         self.writer.close()
+
+    def is_closing(self) -> bool:
+        return self.writer.is_closing()
 
     async def wait_closed(self) -> None:
         await self.writer.wait_closed()
@@ -180,6 +186,9 @@ class LockableWriter(Writer):
     def close(self) -> None:
         self.writer.close()
 
+    def is_closing(self) -> bool:
+        return self.writer.is_closing()
+
     async def wait_closed(self) -> None:
         await self.writer.wait_closed()
 
@@ -212,6 +221,9 @@ class BufferWriter(bytearray, Buffer, Writer):
         pass
 
     def close(self) -> None:
+        pass
+
+    def is_closing(self) -> bool:
         pass
 
     async def wait_closed(self) -> None:
