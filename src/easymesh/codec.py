@@ -101,8 +101,9 @@ class PickleCodec(Codec[Any], UsingLenHeader):
         self.load_kwargs = load_kwargs or {}
 
     async def encode(self, writer: Writer, obj: T) -> None:
-        data = pickle.dumps(obj, protocol=self.protocol, **self.dump_kwargs)
-        await self._write_data_with_len_header(writer, data)
+        buffer = BufferWriter()
+        pickle.dump(obj, buffer, protocol=self.protocol, **self.dump_kwargs)
+        await self._write_data_with_len_header(writer, buffer)
 
     async def decode(self, reader: Reader) -> T:
         data = await self._read_data_with_len_header(reader)
