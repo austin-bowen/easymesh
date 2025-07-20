@@ -269,7 +269,6 @@ class TestSequenceCodec(CodecTest):
         )
 
 
-# TODO
 class TestDictCodec(CodecTest):
     def setup_method(self):
         super().setup_method()
@@ -286,11 +285,57 @@ class TestDictCodec(CodecTest):
 
     @pytest.mark.asyncio
     async def test_encode(self):
-        pytest.fail()
+        await self.assert_encode_returns_None({'key1': 'value1', 'key2': 'value2'})
+
+        self.call_tracker.assert_calls(
+            (self.len_header_codec.encode, call(self.writer, 2)),
+            (self.key_codec.encode, call(self.writer, 'key1')),
+            (self.value_codec.encode, call(self.writer, 'value1')),
+            (self.key_codec.encode, call(self.writer, 'key2')),
+            (self.value_codec.encode, call(self.writer, 'value2')),
+        )
+
+    @pytest.mark.asyncio
+    async def test_encode_empty_dict(self):
+        await self.assert_encode_returns_None({})
+
+        self.call_tracker.assert_calls(
+            (self.len_header_codec.encode, call(self.writer, 0)),
+        )
 
     @pytest.mark.asyncio
     async def test_decode(self):
-        pytest.fail()
+        key_results = ['key1', 'key2']
+        value_results = ['value1', 'value2']
+        self.call_tracker.track(self.len_header_codec.decode, return_value=2)
+        self.call_tracker.track(
+            self.key_codec.decode,
+            side_effect=lambda reader: key_results.pop(0),
+        )
+        self.call_tracker.track(
+            self.value_codec.decode,
+            side_effect=lambda reader: value_results.pop(0),
+        )
+
+        await self.assert_decode_returns({'key1': 'value1', 'key2': 'value2'})
+
+        self.call_tracker.assert_calls(
+            (self.len_header_codec.decode, call(self.reader)),
+            (self.key_codec.decode, call(self.reader)),
+            (self.value_codec.decode, call(self.reader)),
+            (self.key_codec.decode, call(self.reader)),
+            (self.value_codec.decode, call(self.reader)),
+        )
+
+    @pytest.mark.asyncio
+    async def test_decode_empty_dict(self):
+        self.call_tracker.track(self.len_header_codec.decode, return_value=0)
+
+        await self.assert_decode_returns({})
+
+        self.call_tracker.assert_calls(
+            (self.len_header_codec.decode, call(self.reader)),
+        )
 
 
 class TestPickleCodec(CodecTest):
