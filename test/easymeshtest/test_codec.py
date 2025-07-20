@@ -104,10 +104,12 @@ class TestMsgpackCodec(CodecTest):
         await self.assert_encode_decode(data)
 
 
-class TestFixedLengthIntCodec(CodecTest):
+class TestFixedLengthIntCodec(CodecTest2):
     codec: FixedLengthIntCodec
 
     def setup_method(self):
+        super().setup_method()
+
         self.codec = FixedLengthIntCodec(
             length=2,
         )
@@ -116,10 +118,6 @@ class TestFixedLengthIntCodec(CodecTest):
         assert self.codec.length == 2
         assert self.codec.byte_order == 'little'
         assert self.codec.signed is False
-
-    @pytest.mark.asyncio
-    async def test_encode_decode(self):
-        await self.assert_encode_decode(42)
 
     @pytest.mark.parametrize('value, expected', [
         (0, b'\x00\x00'),
@@ -130,17 +128,19 @@ class TestFixedLengthIntCodec(CodecTest):
     ])
     @pytest.mark.asyncio
     async def test_encode(self, value: int, expected: bytes):
-        await self.assert_encode_writes(value, [expected])
+        await self.assert_encode_returns_None(value)
+
+        self.call_tracker.assert_calls(
+            (self.writer.write, call(expected)),
+        )
 
     @pytest.mark.parametrize('value', [-1, 65536])
     @pytest.mark.asyncio
     async def test_encode_with_invalid_value_raises_OverflowError(self, value: int):
-        writer = AsyncMock(spec=Writer)
-
         with pytest.raises(OverflowError):
-            await self.codec.encode(writer, value)
+            await self.assert_encode_returns_None(value)
 
-        writer.write.assert_not_called()
+        self.call_tracker.assert_calls()
 
     @pytest.mark.parametrize('data, expected', [
         (b'\x00\x00', 0),
@@ -151,12 +151,23 @@ class TestFixedLengthIntCodec(CodecTest):
     ])
     @pytest.mark.asyncio
     async def test_decode(self, data: bytes, expected: int):
-        await self.assert_decode_returns(data, expected)
+        self.call_tracker.track(self.reader.readexactly, return_value=data)
+
+        await self.assert_decode_returns(expected)
+
+        self.call_tracker.assert_calls(
+            (self.reader.readexactly, call(2)),
+        )
 
 
 class TestVariableLengthIntCodec(CodecTest):
-    # TODO
-    ...
+    @pytest.mark.asyncio
+    async def test_encode(self):
+        pytest.fail()
+
+    @pytest.mark.asyncio
+    async def test_decode(self):
+        pytest.fail()
 
 
 class TestLengthPrefixedStringCodec(CodecTest):
