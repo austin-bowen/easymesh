@@ -233,6 +233,14 @@ class TestSequenceCodec(CodecTest):
         )
 
     @pytest.mark.asyncio
+    async def test_encode_empty_sequence(self):
+        await self.assert_encode_returns_None([])
+
+        self.call_tracker.assert_calls(
+            (self.len_header_codec.encode, call(self.writer, 0)),
+        )
+
+    @pytest.mark.asyncio
     async def test_decode(self):
         results = [1, 2, 3]
         self.call_tracker.track(self.len_header_codec.decode, return_value=3)
@@ -248,6 +256,16 @@ class TestSequenceCodec(CodecTest):
             (self.item_codec.decode, call(self.reader)),
             (self.item_codec.decode, call(self.reader)),
             (self.item_codec.decode, call(self.reader)),
+        )
+
+    @pytest.mark.asyncio
+    async def test_decode_empty_sequence(self):
+        self.call_tracker.track(self.len_header_codec.decode, return_value=0)
+
+        await self.assert_decode_returns([])
+
+        self.call_tracker.assert_calls(
+            (self.len_header_codec.decode, call(self.reader)),
         )
 
 
