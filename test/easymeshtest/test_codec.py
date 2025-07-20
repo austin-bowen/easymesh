@@ -9,7 +9,7 @@ from easymesh.codec import (
     LengthPrefixedStringCodec,
     MsgpackCodec,
     PickleCodec,
-    msgpack_codec,
+    VariableLengthIntCodec, msgpack_codec,
     pickle_codec,
 )
 from easymeshtest.calltracker import CallTracker
@@ -160,7 +160,12 @@ class TestFixedLengthIntCodec(CodecTest2):
         )
 
 
-class TestVariableLengthIntCodec(CodecTest):
+class TestVariableLengthIntCodec(CodecTest2):
+    def setup_method(self):
+        super().setup_method()
+
+        self.codec = VariableLengthIntCodec()
+
     @pytest.mark.asyncio
     async def test_encode(self):
         pytest.fail()
@@ -170,11 +175,13 @@ class TestVariableLengthIntCodec(CodecTest):
         pytest.fail()
 
 
-class TestLengthPrefixedStringCodec(CodecTest):
+class TestLengthPrefixedStringCodec(CodecTest2):
     codec: LengthPrefixedStringCodec
 
     def setup_method(self):
-        self.len_prefix_codec = FixedLengthIntCodec(length=1)
+        super().setup_method()
+
+        self.len_prefix_codec = self.add_tracked_codec_mock()
 
         self.codec = LengthPrefixedStringCodec(self.len_prefix_codec)
 
@@ -183,22 +190,30 @@ class TestLengthPrefixedStringCodec(CodecTest):
         assert self.codec.encoding == 'utf-8'
 
     @pytest.mark.asyncio
-    async def test_encode_decode(self):
-        await self.assert_encode_decode('hello world')
+    async def test_encode(self):
+        await self.assert_encode_returns_None('hello world')
 
-    @pytest.mark.parametrize('data, expected', [
-        ('', [b'\x00']),
-        ('hello world', [b'\x0B', b'hello world']),
-    ])
-    @pytest.mark.asyncio
-    async def test_encode(self, data: str, expected: list[bytes]):
-        await self.assert_encode_writes(data, expected)
+        self.call_tracker.assert_calls(
+            (self.len_prefix_codec.encode, call(self.writer, 11)),
+            (self.writer.write, call(b'hello world')),
+        )
 
-    @pytest.mark.parametrize('data, expected', [
-        (b'\x00', ''),
-        (b'\x0Bhello world', 'hello world'),
-        (b'\x05hello world', 'hello'),
-    ])
     @pytest.mark.asyncio
-    async def test_decode(self, data: bytes, expected: str):
-        await self.assert_decode_returns(data, expected)
+    async def test_encode_empty_string(self):
+        await self.assert_encode_returns_None('')
+
+        self.call_tracker.assert_calls(
+            (self.len_prefix_codec.encode, call(self.writer, 0)),
+        )
+
+    @pytest.mark.asyncio
+    async def test_decode(self):
+        self.call_tracker.track(self.len_prefix_codec.decode, return_value=11)
+        self.call_tracker.track(self.reader.readexactly, return_value=b'hello world')
+
+        await self.assert_decode_returns('hello world')
+
+        self.call_tracker.assert_calls(
+            (self.len_prefix_codec.decode, call(self.reader)),
+            (self.reader.readexactly, call(11)),
+        )
