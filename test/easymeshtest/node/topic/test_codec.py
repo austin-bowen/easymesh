@@ -4,10 +4,10 @@ import pytest
 
 from easymesh.node.topic.codec import TopicMessageCodec
 from easymesh.node.topic.types import TopicMessage
-from easymeshtest.test_codec import CodecTest2
+from easymeshtest.test_codec import CodecTest
 
 
-class TestTopicMessageCodec(CodecTest2):
+class TestTopicMessageCodec(CodecTest):
     def setup_method(self):
         super().setup_method()
 

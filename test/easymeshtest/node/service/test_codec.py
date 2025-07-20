@@ -4,10 +4,10 @@ import pytest
 
 from easymesh.node.service.codec import ServiceRequestCodec, ServiceResponseCodec
 from easymesh.node.service.types import ServiceRequest, ServiceResponse
-from easymeshtest.test_codec import CodecTest2
+from easymeshtest.test_codec import CodecTest
 
 
-class TestServiceRequestCodec(CodecTest2):
+class TestServiceRequestCodec(CodecTest):
     def setup_method(self):
         super().setup_method()
 
@@ -52,7 +52,7 @@ class TestServiceRequestCodec(CodecTest2):
         )
 
 
-class TestServiceResponseCodec(CodecTest2):
+class TestServiceResponseCodec(CodecTest):
     def setup_method(self):
         super().setup_method()
 

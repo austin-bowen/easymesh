@@ -14,8 +14,7 @@ from easymesh.codec import (
 from easymeshtest.calltracker import CallTracker
 
 
-# TODO Rename this
-class CodecTest2:
+class CodecTest:
     codec: Codec
     reader: AsyncMock
     writer: AsyncMock
@@ -45,7 +44,7 @@ class CodecTest2:
         assert result == expected
 
 
-class TestPickleCodec(CodecTest2):
+class TestPickleCodec(CodecTest):
     codec: PickleCodec
 
     def setup_method(self):
@@ -89,7 +88,7 @@ class TestPickleCodec(CodecTest2):
         )
 
 
-class TestMsgpackCodec(CodecTest2):
+class TestMsgpackCodec(CodecTest):
     codec: MsgpackCodec
 
     def setup_method(self):
@@ -130,7 +129,7 @@ class TestMsgpackCodec(CodecTest2):
         )
 
 
-class TestFixedLengthIntCodec(CodecTest2):
+class TestFixedLengthIntCodec(CodecTest):
     codec: FixedLengthIntCodec
 
     def setup_method(self):
@@ -186,7 +185,7 @@ class TestFixedLengthIntCodec(CodecTest2):
         )
 
 
-class TestVariableLengthIntCodec(CodecTest2):
+class TestVariableLengthIntCodec(CodecTest):
     def setup_method(self):
         super().setup_method()
 
@@ -201,7 +200,7 @@ class TestVariableLengthIntCodec(CodecTest2):
         pytest.fail()
 
 
-class TestLengthPrefixedStringCodec(CodecTest2):
+class TestLengthPrefixedStringCodec(CodecTest):
     codec: LengthPrefixedStringCodec
 
     def setup_method(self):
