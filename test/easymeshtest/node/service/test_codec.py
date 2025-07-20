@@ -13,14 +13,21 @@ class TestServiceRequestCodec(CodecTest):
 
         self.id_codec = self.add_tracked_codec_mock()
         self.service_codec = self.add_tracked_codec_mock()
-        self.data_codec = self.add_tracked_codec_mock()
+        self.args_codec = self.add_tracked_codec_mock()
+        self.kwargs_codec = self.add_tracked_codec_mock()
 
-        self.request = ServiceRequest(id=1, service='service', data='data')
+        self.request = ServiceRequest(
+            id=1,
+            service='service',
+            args=['arg'],
+            kwargs={'key': 'value'},
+        )
 
         self.codec = ServiceRequestCodec(
             self.id_codec,
             self.service_codec,
-            self.data_codec,
+            self.args_codec,
+            self.kwargs_codec,
         )
 
     @pytest.mark.asyncio
@@ -32,7 +39,8 @@ class TestServiceRequestCodec(CodecTest):
         self.call_tracker.assert_calls(
             (self.id_codec.encode, call(writer, request.id)),
             (self.service_codec.encode, call(writer, request.service)),
-            (self.data_codec.encode, call(writer, request.data)),
+            (self.args_codec.encode, call(writer, request.args)),
+            (self.kwargs_codec.encode, call(writer, request.kwargs)),
         )
 
     @pytest.mark.asyncio
@@ -41,14 +49,16 @@ class TestServiceRequestCodec(CodecTest):
 
         self.call_tracker.track(self.id_codec.decode, return_value=request.id)
         self.call_tracker.track(self.service_codec.decode, return_value=request.service)
-        self.call_tracker.track(self.data_codec.decode, return_value=request.data)
+        self.call_tracker.track(self.args_codec.decode, return_value=request.args)
+        self.call_tracker.track(self.kwargs_codec.decode, return_value=request.kwargs)
 
         await self.assert_decode_returns(request)
 
         self.call_tracker.assert_calls(
             (self.id_codec.decode, call(reader)),
             (self.service_codec.decode, call(reader)),
-            (self.data_codec.decode, call(reader)),
+            (self.args_codec.decode, call(reader)),
+            (self.kwargs_codec.decode, call(reader)),
         )
 
 

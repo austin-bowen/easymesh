@@ -1,5 +1,6 @@
 from typing import NamedTuple
 
+from easymesh.node.types import Args, KWArgs
 from easymesh.types import Data, Service
 
 RequestId = int
@@ -8,7 +9,8 @@ RequestId = int
 class ServiceRequest(NamedTuple):
     id: RequestId
     service: Service
-    data: Data
+    args: Args
+    kwargs: KWArgs
 
 
 class ServiceResponse(NamedTuple):

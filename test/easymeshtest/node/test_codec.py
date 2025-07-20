@@ -12,8 +12,19 @@ class TestNodeMessageCodec:
         self.topic_message = TopicMessage('topic', ['arg'], {'key': 'value'})
         self.encoded_topic_message = b't\x05topic\x01\x03arg\x01\x03key\x05value'
 
-        self.service_request = ServiceRequest(id=1, service='service', data='data')
-        self.encoded_service_request = b's\x01\x00\x07service\x04data'
+        self.service_request = ServiceRequest(
+            id=1,
+            service='service',
+            args=['arg'],
+            kwargs={'key': 'value'}
+        )
+        self.encoded_service_request = (
+            b's'
+            b'\x01'
+            b'\x00\x07service'
+            b'\x01\x03arg'
+            b'\x01\x03key\x05value'
+        )
 
         self.service_response = ServiceResponse(id=1, data='data', error=None)
         self.encoded_service_response = b'\x01\x00\x00\x04data'

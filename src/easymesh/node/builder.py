@@ -252,7 +252,8 @@ def build_node_message_codec(
         service_request_codec=ServiceRequestCodec(
             request_id_codec,
             service_codec=short_string_codec,
-            data_codec=data_codec,
+            args_codec=args_codec,
+            kwargs_codec=kwargs_codec,
         ),
         service_response_codec=ServiceResponseCodec(
             request_id_codec,
