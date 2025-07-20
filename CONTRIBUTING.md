@@ -16,5 +16,5 @@ To publish to PyPI, configure `poetry` to use your credentials following
 ## Testing
 
 ```bash
-pytest
+./bin/test
 ```

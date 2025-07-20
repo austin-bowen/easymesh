@@ -16,6 +16,7 @@ dependencies = [
 [tool.poetry.group.test.dependencies]
 pytest = "*"
 pytest-asyncio = "*"
+pytest-cov = "*"
 
 [project.scripts]
 easymesh = "easymesh.__main__:main"
