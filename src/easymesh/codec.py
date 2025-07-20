@@ -1,5 +1,6 @@
 import pickle
 from abc import ABC, abstractmethod
+from collections.abc import Sequence
 from typing import Any, Generic, Literal, TypeVar
 
 from easymesh.asyncio import BufferWriter, Reader, Writer
@@ -11,6 +12,8 @@ except ImportError:
     msgpack = None
 
 T = TypeVar('T')
+K = TypeVar('K')
+V = TypeVar('V')
 
 ByteOrder = Literal['big', 'little']
 DEFAULT_BYTE_ORDER: ByteOrder = 'little'
@@ -127,6 +130,60 @@ def byte_length(value: int) -> int:
     return (value.bit_length() + 7) // 8
 
 
+class SequenceCodec(Generic[T], Codec[Sequence[T]]):
+    def __init__(
+            self,
+            len_header_codec: Codec[int],
+            item_codec: Codec[T],
+    ):
+        self.len_header_codec = len_header_codec
+        self.item_codec = item_codec
+
+    async def encode(self, writer: Writer, sequence: Sequence[T]) -> None:
+        await self.len_header_codec.encode(writer, len(sequence))
+
+        for item in sequence:
+            await self.item_codec.encode(writer, item)
+
+    async def decode(self, reader: Reader) -> Sequence[T]:
+        length = await self.len_header_codec.decode(reader)
+
+        return [
+            await self.item_codec.decode(reader)
+            for _ in range(length)
+        ]
+
+
+class DictCodec(Generic[K, V], Codec[dict[K, V]]):
+    def __init__(
+            self,
+            len_header_codec: Codec[int],
+            key_codec: Codec[K],
+            value_codec: Codec[V],
+    ):
+        self.len_header_codec = len_header_codec
+        self.key_codec = key_codec
+        self.value_codec = value_codec
+
+    async def encode(self, writer: Writer, dict_: dict[K, V]) -> None:
+        await self.len_header_codec.encode(writer, len(dict_))
+
+        for key, value in dict_.items():
+            await self.key_codec.encode(writer, key)
+            await self.value_codec.encode(writer, value)
+
+    async def decode(self, reader: Reader) -> dict[K, V]:
+        length = await self.len_header_codec.decode(reader)
+
+        result = {}
+        for _ in range(length):
+            key = await self.key_codec.decode(reader)
+            value = await self.value_codec.decode(reader)
+            result[key] = value
+
+        return result
+
+
 class PickleCodec(Codec[Any]):
     def __init__(
             self,
@@ -185,5 +242,3 @@ if msgpack:
 
 
     msgpack_codec = MsgpackCodec()
-
-

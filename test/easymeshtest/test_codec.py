@@ -2,7 +2,7 @@ from unittest.mock import AsyncMock, call
 
 import pytest
 
-from easymesh.asyncio import BufferReader, Writer
+from easymesh.asyncio import BufferReader, Reader, Writer
 from easymesh.codec import (
     Codec,
     FixedLengthIntCodec,
@@ -12,8 +12,10 @@ from easymesh.codec import (
     msgpack_codec,
     pickle_codec,
 )
+from easymeshtest.calltracker import CallTracker
 
 
+# TODO Remove this
 class CodecTest:
     codec: Codec
 
@@ -45,6 +47,37 @@ class CodecTest:
         reader = BufferReader(data)
         actual = await self.codec.decode(reader)
         assert actual == expected
+
+
+# TODO Rename this
+class CodecTest2:
+    codec: Codec
+    reader: AsyncMock
+    writer: AsyncMock
+    call_tracker: CallTracker
+
+    def setup_method(self):
+        self.reader = AsyncMock(Reader)
+        self.writer = AsyncMock(Writer)
+
+        self.call_tracker = CallTracker()
+        self.call_tracker.track(self.reader.readexactly)
+        self.call_tracker.track(self.writer.write)
+        self.call_tracker.track(self.writer.drain)
+
+    def add_tracked_codec_mock(self) -> AsyncMock:
+        codec_mock = AsyncMock(Codec)
+        self.call_tracker.track(codec_mock.encode)
+        self.call_tracker.track(codec_mock.decode)
+        return codec_mock
+
+    async def assert_encode_returns_None(self, obj) -> None:
+        result = await self.codec.encode(self.writer, obj)
+        assert result is None
+
+    async def assert_decode_returns(self, expected) -> None:
+        result = await self.codec.decode(self.reader)
+        assert result == expected
 
 
 class TestPickleCodec(CodecTest):

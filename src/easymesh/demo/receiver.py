@@ -11,8 +11,8 @@ async def main(args: Namespace):
 
     node = await build_node_from_args(args=args)
 
-    async def handle_message(topic, data):
-        print(f'Received topic={topic!r} data={data!r}')
+    async def handle_message(topic, *args_, **kwargs_):
+        print(f'Received topic={topic!r} args={args_!r} kwargs={kwargs_!r}')
 
     for topic in args.topics:
         await node.listen(topic, handle_message)

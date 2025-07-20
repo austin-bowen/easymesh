@@ -1,8 +1,10 @@
 from typing import NamedTuple
 
-from easymesh.types import Data, Topic
+from easymesh.node.types import Args, KWArgs
+from easymesh.types import Topic
 
 
 class TopicMessage(NamedTuple):
     topic: Topic
-    data: Data
+    args: Args
+    kwargs: KWArgs

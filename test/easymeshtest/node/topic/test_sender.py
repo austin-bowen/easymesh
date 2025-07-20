@@ -2,10 +2,11 @@ from unittest.mock import AsyncMock
 
 import pytest
 
+from easymesh.asyncio import LockableWriter
 from easymesh.node.codec import NodeMessageCodec
 from easymesh.node.peer import PeerConnection, PeerConnectionManager, PeerSelector
-from easymesh.asyncio import LockableWriter
 from easymesh.node.topic.sender import TopicSender
+from easymesh.node.topic.types import TopicMessage
 from easymesh.specs import MeshNodeSpec
 
 
@@ -47,12 +48,13 @@ class TestTopicSender:
 
     @pytest.mark.asyncio
     async def test_send(self):
-        topic, data = 'topic', 'data'
+        topic, arg = 'topic', 'arg'
+        topic_message = TopicMessage(topic, (arg,), {})
 
-        await self.topic_sender.send(topic, data)
+        await self.topic_sender.send(topic, arg)
 
         self.peer_selector.get_nodes_for_topic.assert_called_once_with(topic)
-        self.node_message_codec.encode_topic_message.assert_awaited_once_with((topic, data))
+        self.node_message_codec.encode_topic_message.assert_awaited_once_with(topic_message)
 
         for connection in self.connections.values():
             connection.writer.write.assert_called_once_with(self.encoded_data)
