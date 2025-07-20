@@ -3,9 +3,10 @@ from datetime import datetime
 from pathlib import Path
 from typing import Iterable
 
-from easymesh.types import Data, Topic
+from easymesh.node.types import Args, KWArgs
+from easymesh.types import Topic
 
-Message = tuple[datetime, Topic, Data]
+Message = tuple[datetime, Topic, Args, KWArgs]
 
 
 def get_bag_file_messages(bag_file_path: Path) -> Iterable[Message]:

@@ -49,7 +49,7 @@ def get_info(bag_file_path: Path) -> 'BagInfo':
     messages = 0
     topics = Counter()
 
-    for instant, topic, data in get_bag_file_messages(bag_file_path):
+    for instant, topic, *_ in get_bag_file_messages(bag_file_path):
         if not start_time:
             start_time = instant
 

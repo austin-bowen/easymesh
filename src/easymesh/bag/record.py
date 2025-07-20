@@ -13,11 +13,11 @@ async def record(node: Node, args: Namespace) -> None:
     with open(bag_file_path, 'wb') as bag_file:
         message_counter = 0
 
-        async def callback(topic, data) -> None:
+        async def callback(topic, *args_, **kwargs_) -> None:
             nonlocal message_counter
 
             now = datetime.now()
-            pickle.dump((now, topic, data), bag_file)
+            pickle.dump((now, topic, args_, kwargs_), bag_file)
 
             message_counter += 1
             if not args.no_dots:
