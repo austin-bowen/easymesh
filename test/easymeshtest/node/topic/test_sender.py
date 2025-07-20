@@ -48,13 +48,12 @@ class TestTopicSender:
 
     @pytest.mark.asyncio
     async def test_send(self):
-        topic, arg = 'topic', 'arg'
-        topic_message = TopicMessage(topic, (arg,), {})
+        message = TopicMessage('topic', ['arg'], {'key': 'value'})
 
-        await self.topic_sender.send(topic, arg)
+        await self.topic_sender.send(message.topic, message.args, message.kwargs)
 
-        self.peer_selector.get_nodes_for_topic.assert_called_once_with(topic)
-        self.node_message_codec.encode_topic_message.assert_awaited_once_with(topic_message)
+        self.peer_selector.get_nodes_for_topic.assert_called_once_with(message.topic)
+        self.node_message_codec.encode_topic_message.assert_awaited_once_with(message)
 
         for connection in self.connections.values():
             connection.writer.write.assert_called_once_with(self.encoded_data)

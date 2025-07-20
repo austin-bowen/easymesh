@@ -61,7 +61,7 @@ class Node:
         await self.register()
 
     async def send(self, topic: Topic, *args: Data, **kwargs: Data) -> None:
-        await self.topic_sender.send(topic, *args, **kwargs)
+        await self.topic_sender.send(topic, args, kwargs)
 
     async def listen(
             self,
@@ -142,7 +142,7 @@ class Node:
         return TopicProxy(self, topic)
 
     async def call(self, service: Service, *args, **kwargs) -> Data:
-        return await self.service_caller.call(service, *args, **kwargs)
+        return await self.service_caller.call(service, args, kwargs)
 
     async def add_service(self, service: Service, handler: ServiceCallback) -> None:
         """Add a service to the node that other nodes can call."""

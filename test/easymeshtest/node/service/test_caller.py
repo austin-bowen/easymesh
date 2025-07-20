@@ -2,12 +2,13 @@ from unittest.mock import AsyncMock
 
 import pytest
 
+from easymesh.asyncio import LockableWriter
 from easymesh.node.codec import NodeMessageCodec
 from easymesh.node.peer import PeerConnection, PeerConnectionManager, PeerSelector
-from easymesh.asyncio import LockableWriter
 from easymesh.node.service.caller import ServiceCaller, ServiceRequestError, ServiceResponseError
 from easymesh.node.service.types import ServiceResponse
 from easymesh.specs import MeshNodeSpec
+from easymesh.types import Service
 
 
 class TestServiceCaller:
@@ -42,7 +43,7 @@ class TestServiceCaller:
             ServiceResponse(id=0, result='response'),
         ]
 
-        response = await self.service_caller.call('service', 'data')
+        response = await self._call('service')
         assert response == 'response'
 
         assert self.service_caller._next_request_id == 1
@@ -57,7 +58,7 @@ class TestServiceCaller:
         ]
 
         with pytest.raises(ServiceResponseError, match='error message'):
-            await self.service_caller.call('service', 'data')
+            await self._call('service')
 
         self._assert_no_pending_requests()
         assert self.connection.writer.write.call_count == 1
@@ -66,7 +67,7 @@ class TestServiceCaller:
     @pytest.mark.asyncio
     async def test_request_with_unknown_service_raises_ValueError(self):
         with pytest.raises(ValueError, match="No node hosting service='unknown_service'"):
-            await self.service_caller.call('unknown_service', 'data')
+            await self._call('unknown_service')
 
         self._assert_no_pending_requests()
         self.connection.writer.write.assert_not_called()
@@ -79,7 +80,7 @@ class TestServiceCaller:
         }
 
         with pytest.raises(ServiceRequestError):
-            await self.service_caller.call('service', 'data')
+            await self._call('service')
 
     @pytest.mark.asyncio
     async def test_requests_fail_for_reader_with_error(self):
@@ -89,9 +90,12 @@ class TestServiceCaller:
                 ServiceResponseError,
                 match='Reader .* was closed before response was received',
         ):
-            await self.service_caller.call('service', 'data')
+            await self._call('service')
 
         self._assert_no_pending_requests()
+
+    async def _call(self, service: Service):
+        return await self.service_caller.call(service, ['arg'], {'key': 'value'})
 
     def _assert_no_pending_requests(self):
         for response_futures in self.service_caller._response_futures.values():

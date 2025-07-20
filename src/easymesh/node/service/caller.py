@@ -9,6 +9,7 @@ from easymesh.asyncio import Reader
 from easymesh.node.codec import NodeMessageCodec
 from easymesh.node.peer import PeerConnectionManager, PeerSelector
 from easymesh.node.service.types import RequestId, ServiceRequest, ServiceResponse
+from easymesh.node.types import Args, KWArgs
 from easymesh.types import Data
 
 logger = logging.getLogger(__name__)
@@ -33,7 +34,7 @@ class ServiceCaller:
             dict[RequestId, Future]
         ] = WeakKeyDictionary()
 
-    async def call(self, service: str, *args: Data, **kwargs: Data) -> Data:
+    async def call(self, service: str, args: Args, kwargs: KWArgs) -> Data:
         node = self.peer_selector.get_node_for_service(service)
         if node is None:
             raise ValueError(f'No node hosting service={service!r}')

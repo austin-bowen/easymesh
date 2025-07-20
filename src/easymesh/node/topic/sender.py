@@ -3,9 +3,10 @@ from typing_extensions import Buffer
 from easymesh.asyncio import log_error, many
 from easymesh.node.codec import NodeMessageCodec
 from easymesh.node.peer import PeerConnectionManager, PeerSelector
-from easymesh.specs import MeshNodeSpec
-from easymesh.types import Data, Topic
 from easymesh.node.topic.types import TopicMessage
+from easymesh.node.types import Args, KWArgs
+from easymesh.specs import MeshNodeSpec
+from easymesh.types import Topic
 
 
 class TopicSender:
@@ -19,7 +20,7 @@ class TopicSender:
         self.connection_manager = connection_manager
         self.node_message_codec = node_message_codec
 
-    async def send(self, topic: Topic, *args: Data, **kwargs: Data) -> None:
+    async def send(self, topic: Topic, args: Args, kwargs: KWArgs) -> None:
         # TODO handle case of self-sending more efficiently
 
         nodes = self.peer_selector.get_nodes_for_topic(topic)
