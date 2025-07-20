@@ -66,7 +66,7 @@ class TestServiceResponseCodec(CodecTest):
     def setup_method(self):
         super().setup_method()
 
-        self.success_response = ServiceResponse(id=1, data='data')
+        self.success_response = ServiceResponse(id=1, result='data')
         self.failure_response = ServiceResponse(id=1, error='error')
 
         self.id_codec = self.add_tracked_codec_mock()
@@ -88,7 +88,7 @@ class TestServiceResponseCodec(CodecTest):
         self.call_tracker.assert_calls(
             (self.id_codec.encode, call(writer, response.id)),
             (writer.write, call(b'\x00')),  # success status code
-            (self.data_codec.encode, call(writer, response.data)),
+            (self.data_codec.encode, call(writer, response.result)),
         )
 
     @pytest.mark.asyncio
@@ -97,7 +97,7 @@ class TestServiceResponseCodec(CodecTest):
 
         self.call_tracker.track(self.id_codec.decode, return_value=response.id)
         self.call_tracker.track(self.reader.readexactly, return_value=b'\x00')
-        self.call_tracker.track(self.data_codec.decode, return_value=response.data)
+        self.call_tracker.track(self.data_codec.decode, return_value=response.result)
         self.call_tracker.track(self.error_codec.decode)
 
         await self.assert_decode_returns(response)

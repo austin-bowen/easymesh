@@ -39,7 +39,7 @@ class TestServiceCaller:
     @pytest.mark.asyncio
     async def test_request_with_success_response_returns_response_data(self):
         self.node_message_codec.decode_service_response.side_effect = [
-            ServiceResponse(id=0, data='response'),
+            ServiceResponse(id=0, result='response'),
         ]
 
         response = await self.service_caller.call('service', 'data')

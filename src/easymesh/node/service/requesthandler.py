@@ -24,7 +24,7 @@ class ServiceRequestHandler:
     ) -> None:
         handler = self.service_handler_manager.get_handler(request.service)
 
-        data, error = None, None
+        result, error = None, None
 
         if handler is None:
             logger.warning(
@@ -35,7 +35,7 @@ class ServiceRequestHandler:
             error = f'service={request.service!r} is not provided by this node'
         else:
             try:
-                data = await handler(request.service, request.data)
+                result = await handler(request.service, *request.args, **request.kwargs)
             except Exception as e:
                 logger.exception(
                     f'Error handling service request={request}',
@@ -43,7 +43,7 @@ class ServiceRequestHandler:
                 )
                 error = repr(e)
 
-        response = ServiceResponse(request.id, data, error)
+        response = ServiceResponse(request.id, result, error)
 
         async with writer:
             await self.node_message_codec.encode_service_response(

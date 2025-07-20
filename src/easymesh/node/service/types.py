@@ -15,5 +15,5 @@ class ServiceRequest(NamedTuple):
 
 class ServiceResponse(NamedTuple):
     id: RequestId
-    data: Data = None
+    result: Data = None
     error: str | None = None

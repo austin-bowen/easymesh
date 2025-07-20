@@ -19,15 +19,27 @@ class TestNodeMessageCodec:
             kwargs={'key': 'value'}
         )
         self.encoded_service_request = (
+            # Prefix for service request
             b's'
-            b'\x01'
-            b'\x00\x07service'
+            # ID
+            b'\x01\x00'
+            # Service
+            b'\x07service'
+            # Args
             b'\x01\x03arg'
+            # KWArgs
             b'\x01\x03key\x05value'
         )
 
-        self.service_response = ServiceResponse(id=1, data='data', error=None)
-        self.encoded_service_response = b'\x01\x00\x00\x04data'
+        self.service_response = ServiceResponse(id=1, result='result', error=None)
+        self.encoded_service_response = (
+            # ID
+            b'\x01\x00'
+            # Success
+            b'\x00'
+            # Result
+            b'\x06result'
+        )
 
         self.codec = build_node_message_codec(
             data_codec=LengthPrefixedStringCodec(FixedLengthIntCodec(length=1)),

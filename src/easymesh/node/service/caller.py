@@ -55,7 +55,7 @@ class ServiceCaller:
         if response.error:
             raise ServiceResponseError(response.error)
 
-        return response.data
+        return response.result
 
     @contextmanager
     def _get_request_id_and_response_future(

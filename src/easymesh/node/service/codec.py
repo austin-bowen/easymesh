@@ -55,7 +55,7 @@ class ServiceResponseCodec(Codec[ServiceResponse]):
             await self.error_codec.encode(writer, response.error)
         else:
             writer.write(self.success_status_code)
-            await self.data_codec.encode(writer, response.data)
+            await self.data_codec.encode(writer, response.result)
 
     async def decode(self, reader: Reader) -> ServiceResponse:
         id = await self.id_codec.decode(reader)
