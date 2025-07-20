@@ -60,8 +60,8 @@ class Node:
 
         await self.register()
 
-    async def send(self, topic: Topic, data: Data = None) -> None:
-        await self.topic_sender.send(topic, data)
+    async def send(self, topic: Topic, *args: Data, **kwargs: Data) -> None:
+        await self.topic_sender.send(topic, *args, **kwargs)
 
     async def listen(
             self,
@@ -223,8 +223,8 @@ class TopicProxy(NamedTuple):
     node: Node
     topic: Topic
 
-    async def send(self, data: Data = None) -> None:
-        await self.node.send(self.topic, data)
+    async def send(self, *args: Data, **kwargs: Data) -> None:
+        await self.node.send(self.topic, *args, **kwargs)
 
     async def has_listeners(self) -> bool:
         return await self.node.topic_has_listeners(self.topic)
