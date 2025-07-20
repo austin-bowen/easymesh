@@ -3,7 +3,7 @@ from unittest.mock import ANY, AsyncMock, call, patch
 
 import pytest
 
-from easymesh.asyncio import BufferReader, Reader, Writer
+from easymesh.asyncio import Reader, Writer
 from easymesh.codec import (
     Codec,
     FixedLengthIntCodec,
@@ -12,40 +12,6 @@ from easymesh.codec import (
     PickleCodec,
     VariableLengthIntCodec, )
 from easymeshtest.calltracker import CallTracker
-
-
-# TODO Remove this
-class CodecTest:
-    codec: Codec
-
-    async def assert_encode_decode(self, value) -> None:
-        writer = AsyncMock(spec=Writer)
-        await self.codec.encode(writer, value)
-
-        written_data = b''.join(
-            args.args[0] for args in writer.write.call_args_list
-        )
-
-        # Simulate a stream with repeated data
-        reader = BufferReader(written_data * 2)
-
-        decoded_objects = [
-            await self.codec.decode(reader),
-            await self.codec.decode(reader),
-        ]
-
-        assert decoded_objects == [value, value]
-
-    async def assert_encode_writes(self, value, expected: list[bytes]):
-        writer = AsyncMock(spec=Writer)
-        await self.codec.encode(writer, value)
-        expected_calls = [call(data) for data in expected]
-        assert writer.write.call_args_list == expected_calls
-
-    async def assert_decode_returns(self, data: bytes, expected) -> None:
-        reader = BufferReader(data)
-        actual = await self.codec.decode(reader)
-        assert actual == expected
 
 
 # TODO Rename this
