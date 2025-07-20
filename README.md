@@ -24,7 +24,7 @@ import easymesh
 
 async def main():
     node = await easymesh.build_node(name='sender')
-    await node.send('some-topic', {'hello': 'world!'})
+    await node.send('some-topic', 'hello', name='world')
 ```
 
 [easymesh/demo/**receiver.py**](src/easymesh/demo/receiver.py):
@@ -36,8 +36,8 @@ async def main():
     await node.listen('some-topic', callback)
     await node.forever()
 
-async def callback(topic, data):
-    print(f'receiver got: topic={topic}; data={data}')
+async def callback(topic, message, name=None):
+    print(f'receiver got "{message} {name}" on topic={topic}')
 ```
 
 **Terminal:**
@@ -46,7 +46,7 @@ async def callback(topic, data):
 $ easymesh &  # Start the coordinator node
 $ python -m easymesh.demo.receiver &
 $ python -m easymesh.demo.sender
-receiver got: topic=some-topic; data={'hello': 'world!'}
+receiver got "hello world" on topic=some-topic
 ```
 
 ### Example: Calling Services
@@ -57,7 +57,7 @@ import easymesh
 
 async def main():
     node = await easymesh.build_node(name='client')
-    response = await node.call('add', (2, 2))
+    response = await node.call('multiply', 2, 2)
     assert response == 4
 ```
 
@@ -67,11 +67,10 @@ import easymesh
 
 async def main():
     node = await easymesh.build_node(name='server')
-    await node.add_service('add', add)
+    await node.add_service('multiply', multiply)
 
-async def add(data):
-    a, b = data
-    return a + b
+async def multiply(a, b):
+    return a * b
 ```
 
 ## Installation

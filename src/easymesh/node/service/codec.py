@@ -1,6 +1,7 @@
 from easymesh.asyncio import Reader, Writer
 from easymesh.codec import Codec
 from easymesh.node.service.types import RequestId, ServiceRequest, ServiceResponse
+from easymesh.node.types import Args, KWArgs
 from easymesh.types import Data, Service
 
 
@@ -9,22 +10,26 @@ class ServiceRequestCodec(Codec[ServiceRequest]):
             self,
             id_codec: Codec[RequestId],
             service_codec: Codec[Service],
-            data_codec: Codec[Data],
+            args_codec: Codec[Args],
+            kwargs_codec: Codec[KWArgs],
     ):
         self.id_codec = id_codec
         self.service_codec = service_codec
-        self.data_codec = data_codec
+        self.args_codec = args_codec
+        self.kwargs_codec = kwargs_codec
 
     async def encode(self, writer: Writer, request: ServiceRequest) -> None:
         await self.id_codec.encode(writer, request.id)
         await self.service_codec.encode(writer, request.service)
-        await self.data_codec.encode(writer, request.data)
+        await self.args_codec.encode(writer, request.args)
+        await self.kwargs_codec.encode(writer, request.kwargs)
 
     async def decode(self, reader: Reader) -> ServiceRequest:
         id = await self.id_codec.decode(reader)
         service = await self.service_codec.decode(reader)
-        data = await self.data_codec.decode(reader)
-        return ServiceRequest(id, service, data)
+        args = await self.args_codec.decode(reader)
+        kwargs = await self.kwargs_codec.decode(reader)
+        return ServiceRequest(id, service, args, kwargs)
 
 
 class ServiceResponseCodec(Codec[ServiceResponse]):
@@ -50,7 +55,7 @@ class ServiceResponseCodec(Codec[ServiceResponse]):
             await self.error_codec.encode(writer, response.error)
         else:
             writer.write(self.success_status_code)
-            await self.data_codec.encode(writer, response.data)
+            await self.data_codec.encode(writer, response.result)
 
     async def decode(self, reader: Reader) -> ServiceResponse:
         id = await self.id_codec.decode(reader)

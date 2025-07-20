@@ -19,11 +19,15 @@ class TopicSender:
         self.connection_manager = connection_manager
         self.node_message_codec = node_message_codec
 
-    async def send(self, topic: Topic, data: Data) -> None:
+    async def send(self, topic: Topic, *args: Data, **kwargs: Data) -> None:
         # TODO handle case of self-sending more efficiently
 
         nodes = self.peer_selector.get_nodes_for_topic(topic)
-        data = await self.node_message_codec.encode_topic_message(TopicMessage(topic, data))
+        if not nodes:
+            return
+
+        message = TopicMessage(topic, args, kwargs)
+        data = await self.node_message_codec.encode_topic_message(message)
 
         await many([
             log_error(self._send_to_one(n, data))

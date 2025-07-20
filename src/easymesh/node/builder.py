@@ -6,15 +6,17 @@ from easymesh.argparse import get_node_arg_parser
 from easymesh.authentication import Authenticator, optional_authkey_authenticator
 from easymesh.codec import (
     Codec,
+    DictCodec,
     FixedLengthIntCodec,
     LengthPrefixedStringCodec,
+    SequenceCodec,
     pickle_codec,
 )
-from easymesh.node.codec import NodeMessageCodec
 from easymesh.coordinator.client import build_coordinator_client
 from easymesh.coordinator.constants import DEFAULT_COORDINATOR_PORT
 from easymesh.network import get_lan_hostname
 from easymesh.node.clienthandler import ClientHandler
+from easymesh.node.codec import NodeMessageCodec
 from easymesh.node.loadbalancing import (
     GroupingTopicLoadBalancer,
     RoundRobinLoadBalancer,
@@ -226,17 +228,32 @@ def build_node_message_codec(
         len_prefix_codec=FixedLengthIntCodec(length=1)
     )
 
+    short_int_codec = FixedLengthIntCodec(length=1)
+
+    args_codec: SequenceCodec[Data] = SequenceCodec(
+        len_header_codec=short_int_codec,
+        item_codec=data_codec,
+    )
+
+    kwargs_codec: DictCodec[str, Data] = DictCodec(
+        len_header_codec=short_int_codec,
+        key_codec=short_string_codec,
+        value_codec=data_codec,
+    )
+
     request_id_codec = FixedLengthIntCodec(length=2)
 
     return NodeMessageCodec(
         topic_message_codec=TopicMessageCodec(
             topic_codec=short_string_codec,
-            data_codec=data_codec,
+            args_codec=args_codec,
+            kwargs_codec=kwargs_codec,
         ),
         service_request_codec=ServiceRequestCodec(
             request_id_codec,
             service_codec=short_string_codec,
-            data_codec=data_codec,
+            args_codec=args_codec,
+            kwargs_codec=kwargs_codec,
         ),
         service_response_codec=ServiceResponseCodec(
             request_id_codec,

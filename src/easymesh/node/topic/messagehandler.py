@@ -18,7 +18,7 @@ class TopicMessageHandler:
         callback = self.listener_manager.get_listener(message.topic)
 
         if callback:
-            await log_error(callback(message.topic, message.data))
+            await log_error(callback(message.topic, *message.args, **message.kwargs))
         else:
             logger.warning(
                 f'Received message for topic={message.topic!r} '

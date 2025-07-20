@@ -33,7 +33,7 @@ class ServiceCaller:
             dict[RequestId, Future]
         ] = WeakKeyDictionary()
 
-    async def call(self, service: str, data: Data) -> Data:
+    async def call(self, service: str, *args: Data, **kwargs: Data) -> Data:
         node = self.peer_selector.get_node_for_service(service)
         if node is None:
             raise ValueError(f'No node hosting service={service!r}')
@@ -43,7 +43,7 @@ class ServiceCaller:
         self._start_response_handler(connection.reader)
 
         with self._get_request_id_and_response_future(connection.reader) as (request_id, response_future):
-            request = ServiceRequest(request_id, service, data)
+            request = ServiceRequest(request_id, service, args, kwargs)
             request = await self.node_message_codec.encode_service_request(request)
 
             async with connection.writer as writer:
@@ -55,7 +55,7 @@ class ServiceCaller:
         if response.error:
             raise ServiceResponseError(response.error)
 
-        return response.data
+        return response.result
 
     @contextmanager
     def _get_request_id_and_response_future(
