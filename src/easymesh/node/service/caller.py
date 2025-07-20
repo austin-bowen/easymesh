@@ -69,7 +69,9 @@ class ServiceCaller:
 
         yield request_id, response_future
 
-        self._response_futures[reader].pop(request_id, None)
+        futures = self._response_futures.get(reader)
+        if futures:
+            futures.pop(request_id, None)
 
     def _get_new_request_id(self, reader: Reader) -> RequestId:
         request_id = self._find_next_available_request_id(reader)
