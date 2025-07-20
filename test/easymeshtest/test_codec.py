@@ -6,11 +6,11 @@ import pytest
 from easymesh.asyncio import Reader, Writer
 from easymesh.codec import (
     Codec,
-    FixedLengthIntCodec,
+    DictCodec, FixedLengthIntCodec,
     LengthPrefixedStringCodec,
     MsgpackCodec,
     PickleCodec,
-    VariableLengthIntCodec, )
+    SequenceCodec, VariableLengthIntCodec, )
 from easymeshtest.calltracker import CallTracker
 
 
@@ -207,6 +207,72 @@ class TestLengthPrefixedStringCodec(CodecTest):
             (self.len_prefix_codec.decode, call(self.reader)),
             (self.reader.readexactly, call(11)),
         )
+
+
+class TestSequenceCodec(CodecTest):
+    def setup_method(self):
+        super().setup_method()
+
+        self.len_header_codec = self.add_tracked_codec_mock()
+        self.item_codec = self.add_tracked_codec_mock()
+
+        self.codec = SequenceCodec(
+            self.len_header_codec,
+            self.item_codec,
+        )
+
+    @pytest.mark.asyncio
+    async def test_encode(self):
+        await self.assert_encode_returns_None([1, 2, 3])
+
+        self.call_tracker.assert_calls(
+            (self.len_header_codec.encode, call(self.writer, 3)),
+            (self.item_codec.encode, call(self.writer, 1)),
+            (self.item_codec.encode, call(self.writer, 2)),
+            (self.item_codec.encode, call(self.writer, 3)),
+        )
+
+    @pytest.mark.asyncio
+    async def test_decode(self):
+        results = [1, 2, 3]
+        self.call_tracker.track(self.len_header_codec.decode, return_value=3)
+        self.call_tracker.track(
+            self.item_codec.decode,
+            side_effect=lambda reader: results.pop(0),
+        )
+
+        await self.assert_decode_returns([1, 2, 3])
+
+        self.call_tracker.assert_calls(
+            (self.len_header_codec.decode, call(self.reader)),
+            (self.item_codec.decode, call(self.reader)),
+            (self.item_codec.decode, call(self.reader)),
+            (self.item_codec.decode, call(self.reader)),
+        )
+
+
+# TODO
+class TestDictCodec(CodecTest):
+    def setup_method(self):
+        super().setup_method()
+
+        self.len_header_codec = self.add_tracked_codec_mock()
+        self.key_codec = self.add_tracked_codec_mock()
+        self.value_codec = self.add_tracked_codec_mock()
+
+        self.codec = DictCodec(
+            self.len_header_codec,
+            self.key_codec,
+            self.value_codec,
+        )
+
+    @pytest.mark.asyncio
+    async def test_encode(self):
+        pytest.fail()
+
+    @pytest.mark.asyncio
+    async def test_decode(self):
+        pytest.fail()
 
 
 class TestPickleCodec(CodecTest):
