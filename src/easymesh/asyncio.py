@@ -22,8 +22,7 @@ async def close_ignoring_errors(writer: 'Writer') -> None:
 
 async def forever():
     """Never returns."""
-    while True:
-        await asyncio.sleep(60)
+    await asyncio.Future()
 
 
 async def log_error(
