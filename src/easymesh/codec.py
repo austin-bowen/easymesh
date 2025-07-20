@@ -73,16 +73,21 @@ class VariableLengthIntCodec(Codec[int]):
     async def encode(self, writer: Writer, value: int) -> None:
         int_byte_length = byte_length(value)
 
-        require(
-            int_byte_length <= self.max_byte_length,
-            f'Computed byte_length={int_byte_length} > max_byte_length={self.max_byte_length}',
-        )
+        if int_byte_length > self.max_byte_length:
+            raise OverflowError(
+                f'Computed byte_length={int_byte_length} is greater than '
+                f'max_byte_length={self.max_byte_length}'
+            )
 
         header = bytes([int_byte_length])
-        writer.write(header)
 
         if int_byte_length > 0:
             data = value.to_bytes(int_byte_length, byteorder=self.byte_order, signed=self.signed)
+        else:
+            data = None
+
+        writer.write(header)
+        if data:
             writer.write(data)
 
     async def decode(self, reader: Reader) -> int:

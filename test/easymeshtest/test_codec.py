@@ -35,6 +35,14 @@ class CodecTest:
         self.call_tracker.track(codec_mock.decode)
         return codec_mock
 
+    def setup_reader(self, *results: bytes) -> None:
+        results = list(results)
+
+        self.call_tracker.track(
+            self.reader.readexactly,
+            side_effect=lambda n: results.pop(0),
+        )
+
     async def assert_encode_returns_None(self, obj) -> None:
         result = await self.codec.encode(self.writer, obj)
         assert result is None
@@ -186,18 +194,60 @@ class TestFixedLengthIntCodec(CodecTest):
 
 
 class TestVariableLengthIntCodec(CodecTest):
+    codec: VariableLengthIntCodec
+
     def setup_method(self):
         super().setup_method()
 
-        self.codec = VariableLengthIntCodec()
+        self.codec = VariableLengthIntCodec(
+            max_byte_length=2,
+        )
 
-    @pytest.mark.asyncio
-    async def test_encode(self):
-        pytest.fail()
+    def test_constructor_defaults(self):
+        codec = VariableLengthIntCodec()
+        assert codec.max_byte_length == 8
+        assert codec.byte_order == 'little'
+        assert codec.signed is False
 
+    @pytest.mark.parametrize('value, len_byte, encoded_bytes', [
+        (0, b'\x00', b''),
+        (1, b'\x01', b'\x01'),
+        (255, b'\x01', b'\xFF'),
+        (256, b'\x02', b'\x00\x01'),
+        (65535, b'\x02', b'\xFF\xFF'),
+    ])
     @pytest.mark.asyncio
-    async def test_decode(self):
-        pytest.fail()
+    async def test_encode(self, value: int, len_byte: bytes, encoded_bytes: bytes):
+        await self.assert_encode_returns_None(value)
+
+        expected_calls = [
+            (self.writer.write, call(len_byte)),
+        ]
+        if encoded_bytes:
+            expected_calls.append((self.writer.write, call(encoded_bytes)))
+
+        self.call_tracker.assert_calls(*expected_calls)
+
+    @pytest.mark.parametrize('value', [-1, 65536])
+    @pytest.mark.asyncio
+    async def test_encode_with_invalid_value_raises_OverflowError(self, value: int):
+        with pytest.raises(OverflowError):
+            await self.assert_encode_returns_None(value)
+
+        self.call_tracker.assert_calls()
+
+    @pytest.mark.parametrize('len_byte, encoded_bytes, expected', [
+        (b'\x00', b'', 0),
+        (b'\x01', b'\x01', 1),
+        (b'\x01', b'\xFF', 255),
+        (b'\x02', b'\x00\x01', 256),
+        (b'\x02', b'\xFF\xFF', 65535),
+    ])
+    @pytest.mark.asyncio
+    async def test_decode(self, len_byte: bytes, encoded_bytes: bytes, expected: int):
+        self.setup_reader(len_byte, encoded_bytes)
+
+        await self.assert_decode_returns(expected)
 
 
 class TestLengthPrefixedStringCodec(CodecTest):

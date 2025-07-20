@@ -19,8 +19,18 @@ class CallTracker:
 
         mock.side_effect = side_effect_
 
-    def assert_calls(self, *all_expected: tuple[Mock, call]) -> None:
-        for actual, expected in zip(self.calls, all_expected):
-            assert actual == expected
+    def assert_calls(self, *expected: tuple[Mock, call]) -> None:
+        expected = list(expected)
+        assert self.calls == expected, f'''
+Expected calls do not match actual calls.
 
-        assert len(self.calls) == len(all_expected)
+Expected calls:
+{format_calls_(expected)}
+
+Actual calls:
+{format_calls_(self.calls)}
+        '''.strip()
+
+
+def format_calls_(calls) -> str:
+    return '\n'.join(f'{i}: {c}' for i, c in enumerate(calls)) or '[None]'
