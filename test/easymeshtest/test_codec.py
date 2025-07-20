@@ -1,4 +1,5 @@
-from unittest.mock import AsyncMock, call
+import pickle
+from unittest.mock import ANY, AsyncMock, call, patch
 
 import pytest
 
@@ -10,7 +11,6 @@ from easymesh.codec import (
     MsgpackCodec,
     PickleCodec,
     VariableLengthIntCodec, msgpack_codec,
-    pickle_codec,
 )
 from easymeshtest.calltracker import CallTracker
 
@@ -80,17 +80,48 @@ class CodecTest2:
         assert result == expected
 
 
-class TestPickleCodec(CodecTest):
+class TestPickleCodec(CodecTest2):
     codec: PickleCodec
 
     def setup_method(self):
-        self.codec = pickle_codec
+        super().setup_method()
 
+        self.len_header_codec = self.add_tracked_codec_mock()
+
+        self.codec = PickleCodec(
+            len_header_codec=self.len_header_codec,
+        )
+
+    @patch('easymesh.codec.pickle.dump')
     @pytest.mark.asyncio
-    async def test_encode_decode(self):
-        data = dict(key='value', number=42, float_list=[1.2, 3.4])
-        await self.assert_encode_decode(data)
+    async def test_encode(self, dump):
+        def dump_side_effect(obj, file, protocol):
+            file.write(b'data')
 
+        self.call_tracker.track(dump, side_effect=dump_side_effect)
+
+        await self.assert_encode_returns_None('data')
+
+        self.call_tracker.assert_calls(
+            (dump, call('data', ANY, protocol=pickle.HIGHEST_PROTOCOL)),
+            (self.len_header_codec.encode, call(self.writer, 4)),
+            (self.writer.write, call(b'data')),
+        )
+
+    @patch('easymesh.codec.pickle.loads')
+    @pytest.mark.asyncio
+    async def test_decode(self, loads):
+        self.call_tracker.track(self.len_header_codec.decode, return_value=4)
+        self.call_tracker.track(self.reader.readexactly, return_value=b'data')
+        self.call_tracker.track(loads, return_value='data')
+
+        await self.assert_decode_returns('data')
+
+        self.call_tracker.assert_calls(
+            (self.len_header_codec.decode, call(self.reader)),
+            (self.reader.readexactly, call(4)),
+            (loads, call(b'data')),
+        )
 
 class TestMsgpackCodec(CodecTest):
     codec: MsgpackCodec
