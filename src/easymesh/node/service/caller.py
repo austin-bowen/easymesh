@@ -115,13 +115,15 @@ class ServiceCaller:
             )
             return
 
-        response_future.set_result(response)
+        if not response_future.done():
+            response_future.set_result(response)
 
     def _fail_pending_response_futures_for(self, reader: Reader) -> None:
         error = ServiceResponseError(f'Reader {reader!r} was closed before response was received')
         response_futures = self._response_futures[reader].values()
         for response_future in response_futures:
-            response_future.set_exception(error)
+            if not response_future.done():
+                response_future.set_exception(error)
 
 
 class ServiceRequestError(Exception):

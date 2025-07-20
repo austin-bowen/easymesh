@@ -83,6 +83,7 @@ class PeerConnectionManager:
             if connection:
                 return connection
 
+            logger.debug(f'Connecting to node: {node.id}')
             reader, writer = await self.conn_builder.build(node.connection_specs)
 
             writer = LockableWriter(writer)
