@@ -1,6 +1,6 @@
 [project]
 name = "easymesh"
-version = "0.2.0"
+version = "0.3.0"
 description = "Simple, fast inter-process message passing for distributed Python processes"
 authors = [
     {name = "Austin Bowen", email = "austin.bowen.314@gmail.com"}
