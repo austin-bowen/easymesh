@@ -156,7 +156,7 @@ class ServersManager:
         if self._connection_specs:
             raise RuntimeError('Servers have already been started.')
 
-        client_connected_cb = _close_on_error(self.client_connected_cb)
+        client_connected_cb = _close_on_return(self.client_connected_cb)
 
         for provider in self.server_providers:
             try:
@@ -180,7 +180,7 @@ class UnsupportedProviderError(Exception):
         )
 
 
-def _close_on_error(
+def _close_on_return(
         callback: ClientConnectedCallback,
 ) -> Callable[[StreamReader, StreamWriter], Awaitable[None]]:
     async def wrapped_callback(reader: StreamReader, writer: StreamWriter) -> None:
