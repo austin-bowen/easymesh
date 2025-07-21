@@ -10,7 +10,7 @@ from easymesh.codec import (
     FixedLengthIntCodec,
     LengthPrefixedStringCodec,
     SequenceCodec,
-    pickle_codec,
+    json_codec, pickle_codec,
 )
 from easymesh.coordinator.client import build_coordinator_client
 from easymesh.coordinator.constants import DEFAULT_COORDINATOR_PORT
@@ -88,7 +88,7 @@ async def build_node(
         allow_tcp_connections: bool = True,
         node_server_host: ServerHost = None,
         node_client_host: Host = None,
-        data_codec: Codec[Data] | Literal['pickle', 'msgpack'] = 'pickle',
+        data_codec: Codec[Data] | Literal['pickle', 'json', 'msgpack'] = 'pickle',
         authkey: bytes = None,
         authenticator: Authenticator = None,
         topic_load_balancer: TopicLoadBalancer = None,
@@ -119,6 +119,8 @@ async def build_node(
 
     if data_codec == 'pickle':
         data_codec = pickle_codec
+    elif data_codec == 'json':
+        data_codec = json_codec
     elif data_codec == 'msgpack':
         if not msgpack_codec:
             raise ValueError('msgpack is not installed')

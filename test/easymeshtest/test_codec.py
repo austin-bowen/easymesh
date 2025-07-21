@@ -7,7 +7,7 @@ from easymesh.asyncio import Reader, Writer
 from easymesh.codec import (
     Codec,
     DictCodec, FixedLengthIntCodec,
-    LengthPrefixedStringCodec,
+    JsonCodec, LengthPrefixedStringCodec,
     MsgpackCodec,
     PickleCodec,
     SequenceCodec, VariableLengthIntCodec, )
@@ -349,8 +349,6 @@ class TestDictCodec(CodecTest):
 
 
 class TestPickleCodec(CodecTest):
-    codec: PickleCodec
-
     def setup_method(self):
         super().setup_method()
 
@@ -392,9 +390,46 @@ class TestPickleCodec(CodecTest):
         )
 
 
-class TestMsgpackCodec(CodecTest):
-    codec: MsgpackCodec
+class TestJsonCodec(CodecTest):
+    def setup_method(self):
+        super().setup_method()
 
+        self.len_header_codec = self.add_tracked_codec_mock()
+
+        self.codec = JsonCodec(
+            len_header_codec=self.len_header_codec,
+        )
+
+    @patch('easymesh.codec.orjson.dumps')
+    @pytest.mark.asyncio
+    async def test_encode(self, dumps):
+        self.call_tracker.track(dumps, return_value=b'data')
+
+        await self.assert_encode_returns_None('data')
+
+        self.call_tracker.assert_calls(
+            (dumps, call('data')),
+            (self.len_header_codec.encode, call(self.writer, 4)),
+            (self.writer.write, call(b'data')),
+        )
+
+    @patch('easymesh.codec.orjson.loads')
+    @pytest.mark.asyncio
+    async def test_decode(self, loads):
+        self.call_tracker.track(self.len_header_codec.decode, return_value=4)
+        self.call_tracker.track(self.reader.readexactly, return_value=b'data')
+        self.call_tracker.track(loads, return_value='data')
+
+        await self.assert_decode_returns('data')
+
+        self.call_tracker.assert_calls(
+            (self.len_header_codec.decode, call(self.reader)),
+            (self.reader.readexactly, call(4)),
+            (loads, call(b'data')),
+        )
+
+
+class TestMsgpackCodec(CodecTest):
     def setup_method(self):
         super().setup_method()
 

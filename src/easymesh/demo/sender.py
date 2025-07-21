@@ -9,7 +9,7 @@ from easymesh.argparse import get_node_arg_parser
 async def main(args: Namespace):
     logging.basicConfig(level=args.log)
 
-    node = await build_node_from_args(args=args)
+    node = await build_node_from_args(args=args, data_codec='msgpack')
 
     topic = node.get_topic(args.topic)
 
