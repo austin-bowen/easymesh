@@ -10,14 +10,13 @@ class MeshTopologyManager:
         self._topic_nodes: dict[Topic, list[MeshNodeSpec]]
         self._service_nodes: dict[Service, list[MeshNodeSpec]]
 
-        self.topology = MeshTopologySpec(nodes=[])
+        self.set_topology(MeshTopologySpec(nodes=[]))
 
     @property
     def topology(self) -> MeshTopologySpec:
         return self._topology
 
-    @topology.setter
-    def topology(self, value: MeshTopologySpec) -> None:
+    def set_topology(self, value: MeshTopologySpec) -> None:
         self._topology = value
 
         self._cache_topic_nodes()
@@ -47,20 +46,17 @@ class MeshTopologyManager:
     def get_nodes_providing_service(self, service: str) -> list[MeshNodeSpec]:
         return self._service_nodes_cache[service]
 
+    def get_removed_nodes(
+            self,
+            new_topology: MeshTopologySpec,
+    ) -> list[MeshNodeSpec]:
+        """
+        Returns a list of nodes that were removed in the new topology.
+        """
 
-def get_removed_nodes(
-        old_topology: MeshTopologySpec,
-        new_topology: MeshTopologySpec,
-) -> list[MeshNodeSpec]:
-    """
-    Returns a list of nodes that were removed from the topology.
-    """
+        new_node_ids = {node.id for node in new_topology.nodes}
 
-    new_node_ids = {node.id for node in new_topology.nodes}
-
-    removed_nodes = [
-        node for node in old_topology.nodes
-        if node.id not in new_node_ids
-    ]
-
-    return removed_nodes
+        return [
+            node for node in self.topology.nodes
+            if node.id not in new_node_ids
+        ]

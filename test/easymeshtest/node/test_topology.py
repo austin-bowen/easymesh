@@ -1,4 +1,4 @@
-from easymesh.node.topology import MeshTopologyManager, get_removed_nodes
+from easymesh.node.topology import MeshTopologyManager
 from easymesh.specs import MeshNodeSpec, MeshTopologySpec, NodeId
 
 
@@ -32,7 +32,7 @@ class TestMeshTopologyManager:
         ])
 
         self.topology_manager = MeshTopologyManager()
-        self.topology_manager.topology = self.topology
+        self.topology_manager.set_topology(self.topology)
 
     def test_topology_property(self):
         assert self.topology_manager.topology is self.topology
@@ -53,39 +53,31 @@ class TestMeshTopologyManager:
         result = self.topology_manager.get_nodes_providing_service('unknown_service')
         assert result == []
 
+    def test_get_removed_nodes_returns_removed_nodes(self):
+        removed_node = self.node1
+        new_node = mesh_node_spec('node4')
 
-class TestGetRemovedNodes:
-    def test_returns_removed_nodes_when_nodes_are_removed(self):
-        removed_node = mesh_node_spec('node1')
-        kept_node = mesh_node_spec('node2')
-        new_node = mesh_node_spec('node3')
-
-        old_topology = MeshTopologySpec(nodes=[
-            removed_node,
-            kept_node,
-        ])
         new_topology = MeshTopologySpec(nodes=[
-            kept_node,
+            self.node2,
+            self.node3,
             new_node,
         ])
 
-        removed_nodes = get_removed_nodes(old_topology, new_topology)
+        removed_nodes = self.topology_manager.get_removed_nodes(new_topology)
 
         assert removed_nodes == [removed_node]
 
-    def test_returns_empty_list_when_no_nodes_removed(self):
-        kept_node = mesh_node_spec('node1')
+    def test_get_removed_nodes_returns_empty_list_when_no_nodes_removed(self):
         new_node = mesh_node_spec('node2')
 
-        old_topology = MeshTopologySpec(nodes=[
-            kept_node,
-        ])
         new_topology = MeshTopologySpec(nodes=[
-            kept_node,
+            self.node1,
+            self.node2,
+            self.node3,
             new_node,
         ])
 
-        removed_nodes = get_removed_nodes(old_topology, new_topology)
+        removed_nodes = self.topology_manager.get_removed_nodes(new_topology)
 
         assert removed_nodes == []
 

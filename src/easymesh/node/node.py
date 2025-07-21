@@ -12,7 +12,7 @@ from easymesh.node.service.handlermanager import ServiceHandlerManager
 from easymesh.node.service.types import ServiceResponse
 from easymesh.node.topic.listenermanager import TopicListenerCallback, TopicListenerManager
 from easymesh.node.topic.sender import TopicSender
-from easymesh.node.topology import MeshTopologyManager, get_removed_nodes
+from easymesh.node.topology import MeshTopologyManager
 from easymesh.reqres import MeshTopologyBroadcast
 from easymesh.specs import MeshNodeSpec, NodeId
 from easymesh.types import Data, Service, ServiceCallback, Topic
@@ -192,21 +192,20 @@ class Node:
         )
 
     async def _handle_topology_broadcast(self, broadcast: MeshTopologyBroadcast) -> None:
+        new_topology = broadcast.mesh_topology
+
         logger.debug(
             f'Received mesh topology broadcast with '
-            f'{len(broadcast.mesh_topology.nodes)} nodes.'
+            f'{len(new_topology.nodes)} nodes.'
         )
 
-        removed_nodes = get_removed_nodes(
-            old_topology=self.topology_manager.topology,
-            new_topology=broadcast.mesh_topology,
-        )
+        removed_nodes = self.topology_manager.get_removed_nodes(new_topology)
         logger.debug(
             f'Removed {len(removed_nodes)} nodes: '
             f'{[str(node.id) for node in removed_nodes]}'
         )
 
-        self.topology_manager.topology = broadcast.mesh_topology
+        self.topology_manager.set_topology(new_topology)
 
         for node in removed_nodes:
             await self.connection_manager.close_connection(node)
