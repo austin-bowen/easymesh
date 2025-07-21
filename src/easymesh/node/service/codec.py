@@ -68,6 +68,6 @@ class ServiceResponseCodec(Codec[ServiceResponse]):
             data = None
             error = await self.error_codec.decode(reader)
         else:
-            raise RuntimeError(f'Received unknown status code={status_code!r}')
+            raise ValueError(f'Received unknown status code={status_code!r}')
 
         return ServiceResponse(id, data, error)

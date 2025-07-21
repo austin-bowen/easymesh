@@ -27,11 +27,11 @@ DEFAULT_TOPIC_ENCODING: str = 'utf-8'
 class Codec(Generic[T], ABC):
     @abstractmethod
     async def encode(self, writer: Writer, obj: T) -> None:
-        ...
+        ...  # pragma: no cover
 
     @abstractmethod
     async def decode(self, reader: Reader) -> T:
-        ...
+        ...  # pragma: no cover
 
 
 class FixedLengthIntCodec(Codec[int]):

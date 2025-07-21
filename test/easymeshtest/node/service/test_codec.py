@@ -136,3 +136,16 @@ class TestServiceResponseCodec(CodecTest):
             (self.reader.readexactly, call(1)),  # read status code
             (self.error_codec.decode, call(reader)),
         )
+
+    @pytest.mark.asyncio
+    async def test_decode_unknown_status_code_raises_ValueError(self):
+        self.call_tracker.track(self.id_codec.decode, return_value=1)
+        self.call_tracker.track(self.reader.readexactly, return_value=b'?')
+
+        with pytest.raises(ValueError, match=f'Received unknown status code='):
+            await self.codec.decode(self.reader)
+
+        self.call_tracker.assert_calls(
+            (self.id_codec.decode, call(self.reader)),
+            (self.reader.readexactly, call(1)),  # read status code
+        )

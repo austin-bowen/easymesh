@@ -65,7 +65,8 @@ class TestNodeMessageCodec:
     async def test_decode_topic_message_or_service_request(self):
         reader = BufferReader(
             self.encoded_topic_message +
-            self.encoded_service_request
+            self.encoded_service_request +
+            b'?'  # Unrecognized prefix to test error handling
         )
 
         message = await self.codec.decode_topic_message_or_service_request(reader)
@@ -73,6 +74,9 @@ class TestNodeMessageCodec:
 
         request = await self.codec.decode_topic_message_or_service_request(reader)
         assert request == self.service_request
+
+        with pytest.raises(ValueError, match='Unknown prefix='):
+            await self.codec.decode_topic_message_or_service_request(reader)
 
     @pytest.mark.asyncio
     async def test_decode_service_response(self):

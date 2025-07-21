@@ -208,6 +208,16 @@ class TestLengthPrefixedStringCodec(CodecTest):
             (self.reader.readexactly, call(11)),
         )
 
+    @pytest.mark.asyncio
+    async def test_decode_empty_string(self):
+        self.call_tracker.track(self.len_prefix_codec.decode, return_value=0)
+
+        await self.assert_decode_returns('')
+
+        self.call_tracker.assert_calls(
+            (self.len_prefix_codec.decode, call(self.reader)),
+        )
+
 
 class TestSequenceCodec(CodecTest):
     def setup_method(self):
