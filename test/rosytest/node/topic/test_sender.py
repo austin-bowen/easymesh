@@ -58,3 +58,15 @@ class TestTopicSender:
         for connection in self.connections.values():
             connection.writer.write.assert_called_once_with(self.encoded_data)
             connection.writer.drain.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_send_with_no_listening_nodes(self):
+        self.peer_selector.get_nodes_for_topic.return_value = []
+
+        message = TopicMessage('topic', ['arg'], {'key': 'value'})
+
+        await self.topic_sender.send(message.topic, message.args, message.kwargs)
+
+        self.peer_selector.get_nodes_for_topic.assert_called_once_with(message.topic)
+        self.node_message_codec.encode_topic_message.assert_not_awaited()
+        self.connection_manager.get_connection.assert_not_awaited()
