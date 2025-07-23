@@ -17,6 +17,3 @@ class ServiceHandlerManager:
 
     def remove_handler(self, service: Service) -> ServiceCallback | None:
         return self._handlers.pop(service, None)
-
-    def has_handler(self, service: Service) -> bool:
-        return service in self._handlers

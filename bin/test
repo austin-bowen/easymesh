@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
 
+. venv/bin/activate
 pytest --cov=src/rosy --cov-report=term-missing
 rm .coverage
