@@ -67,11 +67,11 @@ class Node:
             topic: Topic,
             callback: TopicCallback,
     ) -> None:
-        self.topic_listener_manager.set_listener(topic, callback)
+        self.topic_listener_manager.set_callback(topic, callback)
         await self.register()
 
     async def stop_listening(self, topic: Topic) -> None:
-        callback = self.topic_listener_manager.remove_listener(topic)
+        callback = self.topic_listener_manager.remove_callback(topic)
 
         if callback is not None:
             await self.register()
@@ -145,12 +145,12 @@ class Node:
 
     async def add_service(self, service: Service, handler: ServiceCallback) -> None:
         """Add a service to the node that other nodes can call."""
-        self.service_handler_manager.set_handler(service, handler)
+        self.service_handler_manager.set_callback(service, handler)
         await self.register()
 
     async def remove_service(self, service: Service) -> None:
         """Stop providing a service."""
-        self.service_handler_manager.remove_handler(service)
+        self.service_handler_manager.remove_callback(service)
         await self.register()
 
     async def service_has_providers(self, service: Service) -> bool:
@@ -186,8 +186,8 @@ class Node:
         return MeshNodeSpec(
             id=self.id,
             connection_specs=self.servers_manager.connection_specs,
-            topics=self.topic_listener_manager.topics,
-            services=self.service_handler_manager.services,
+            topics=self.topic_listener_manager.keys,
+            services=self.service_handler_manager.keys,
         )
 
     async def _handle_topology_broadcast(self, broadcast: MeshTopologyBroadcast) -> None:

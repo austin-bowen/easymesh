@@ -22,7 +22,7 @@ class ServiceRequestHandler:
             request: ServiceRequest,
             writer: LockableWriter,
     ) -> None:
-        handler = self.service_handler_manager.get_handler(request.service)
+        handler = self.service_handler_manager.get_callback(request.service)
 
         result, error = None, None
 

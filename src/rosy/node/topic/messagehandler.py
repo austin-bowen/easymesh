@@ -15,7 +15,7 @@ class TopicMessageHandler:
         self.listener_manager = listener_manager
 
     async def handle_message(self, message: TopicMessage) -> None:
-        callback = self.listener_manager.get_listener(message.topic)
+        callback = self.listener_manager.get_callback(message.topic)
 
         if callback:
             await log_error(callback(message.topic, *message.args, **message.kwargs))
