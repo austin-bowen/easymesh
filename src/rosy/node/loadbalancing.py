@@ -18,7 +18,7 @@ class TopicLoadBalancer(ABC):
         Takes a list of nodes listening to the given topic
         and returns which nodes to send the message to.
         """
-        ...
+        ...  # pragma: no cover
 
 
 class ServiceLoadBalancer(ABC):
@@ -28,7 +28,7 @@ class ServiceLoadBalancer(ABC):
         Takes a list of nodes providing the given service
         and returns which node to send the request to.
         """
-        ...
+        ...  # pragma: no cover
 
 
 class NoopTopicLoadBalancer(TopicLoadBalancer):
@@ -38,28 +38,8 @@ class NoopTopicLoadBalancer(TopicLoadBalancer):
         return nodes
 
 
-class LoadBalancerByTopic(TopicLoadBalancer):
-    """Applies load balancer by topic."""
-
-    def __init__(
-            self,
-            load_balancers: dict[Topic, TopicLoadBalancer],
-            default: TopicLoadBalancer = NoopTopicLoadBalancer(),
-    ):
-        self.load_balancers = load_balancers
-        self.default = default
-
-    def choose_nodes(self, nodes: list[MeshNodeSpec], topic: Topic) -> list[MeshNodeSpec]:
-        load_balancer = self.load_balancers.get(topic, self.default)
-        return load_balancer.choose_nodes(nodes, topic)
-
-
 def node_name_group_key(node: MeshNodeSpec) -> str:
     return node.id.name
-
-
-def node_name_and_hostname_group_key(node: MeshNodeSpec) -> tuple[str, str]:
-    return node.id.name, node.id.hostname
 
 
 class GroupingTopicLoadBalancer(TopicLoadBalancer):
