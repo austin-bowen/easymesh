@@ -3,11 +3,7 @@ from asyncio import Lock, open_connection, open_unix_connection
 from collections.abc import Iterable
 from typing import NamedTuple
 
-from rosy.asyncio import (
-    LockableWriter,
-    Reader,
-    Writer,
-)
+from rosy.asyncio import LockableWriter, Reader, Writer
 from rosy.authentication import Authenticator
 from rosy.network import get_hostname
 from rosy.node.loadbalancing import ServiceLoadBalancer, TopicLoadBalancer
