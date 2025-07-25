@@ -2,12 +2,12 @@ from unittest.mock import call, create_autospec, patch
 
 import pytest
 
-from rosy.asyncio import Reader, Writer
+from rosy.asyncio import LockableWriter, Reader, Writer
 from rosy.authentication import Authenticator
 from rosy.node.loadbalancing import ServiceLoadBalancer, TopicLoadBalancer
-from rosy.node.peer import PeerConnection, PeerConnectionBuilder, PeerSelector
+from rosy.node.peer import PeerConnection, PeerConnectionBuilder, PeerConnectionManager, PeerSelector
 from rosy.node.topology import MeshTopologyManager
-from rosy.specs import IpConnectionSpec, UnixConnectionSpec
+from rosy.specs import IpConnectionSpec, MeshNodeSpec, NodeId, UnixConnectionSpec
 
 
 class TestPeerConnection:
@@ -156,9 +156,68 @@ def open_unix_connection_mock():
 
 
 class TestPeerConnectionManager:
-    def test(self):
-        # TODO
-        pytest.fail()
+    def setup_method(self):
+        self.reader = create_autospec(Reader)
+
+        self.writer = create_autospec(Writer)
+        self.writer.is_closing.return_value = False
+
+        self.conn_builder = create_autospec(PeerConnectionBuilder)
+        self.conn_builder.build.return_value = self.reader, self.writer
+
+        self.manager = PeerConnectionManager(self.conn_builder)
+
+    @pytest.mark.asyncio
+    async def test_get_connection_returns_new_connection_on_first_call(self):
+        node = mock_node('node')
+
+        connection = await self.manager.get_connection(node)
+
+        assert connection.reader is self.reader
+        assert isinstance(connection.writer, LockableWriter)
+        assert connection.writer.writer is self.writer
+
+        self.conn_builder.build.assert_awaited_once_with(node.connection_specs)
+
+    @pytest.mark.asyncio
+    async def test_get_connection_returns_cached_connection_on_second_call(self):
+        node = mock_node('node')
+
+        connection1 = await self.manager.get_connection(node)
+
+        self.conn_builder.build.assert_awaited_once_with(node.connection_specs)
+
+        connection2 = await self.manager.get_connection(node)
+
+        assert connection2 is connection1
+
+        self.conn_builder.build.assert_awaited_once_with(node.connection_specs)
+
+    @pytest.mark.asyncio
+    async def test_get_connection_returns_new_connection_on_second_call_when_cached_connection_closed(self):
+        node = mock_node('node')
+
+        connection1 = await self.manager.get_connection(node)
+
+        self.writer.is_closing.return_value = True
+
+        connection2 = await self.manager.get_connection(node)
+
+        assert connection2 is not connection1
+
+        assert self.conn_builder.build.call_args_list == [
+            call(node.connection_specs),
+            call(node.connection_specs),
+        ]
+
+
+def mock_node(name: str):
+    node = create_autospec(MeshNodeSpec)
+
+    node.id = NodeId(name)
+    node.connection_specs = [create_autospec(IpConnectionSpec)]
+
+    return node
 
 
 class TestPeerSelector:
