@@ -1,4 +1,4 @@
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
@@ -94,9 +94,27 @@ class TestServiceCaller:
 
         self._assert_no_pending_requests()
 
+    @pytest.mark.asyncio
+    async def test_receiving_unknown_request_logs_warning(self, logger_mock):
+        self.node_message_codec.decode_service_response.side_effect = [
+            ServiceResponse(id=1, result='response 1'),  # Unknown request ID
+            ServiceResponse(id=0, result='response 0'),
+        ]
+
+        response = await self._call('service')
+        assert response == 'response 0'
+
+        logger_mock.warning.assert_called_once()
+
     async def _call(self, service: Service):
         return await self.service_caller.call(service, ['arg'], {'key': 'value'})
 
     def _assert_no_pending_requests(self):
         for response_futures in self.service_caller._response_futures.values():
             assert not response_futures
+
+
+@pytest.fixture
+def logger_mock():
+    with patch('rosy.node.service.caller.logger') as mock:
+        yield mock
