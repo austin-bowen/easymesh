@@ -63,7 +63,7 @@ class PeerConnectionBuilder:
 
             return await open_unix_connection(path=conn_spec.path)
         else:
-            raise ValueError(f'Invalid connection spec: {conn_spec}')
+            raise ValueError(f'Unrecognized connection spec: {conn_spec}')
 
 
 class PeerConnectionManager:
