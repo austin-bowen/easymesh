@@ -150,8 +150,12 @@ class Node:
 
     async def remove_service(self, service: Service) -> None:
         """Stop providing a service."""
-        self.service_handler_manager.remove_callback(service)
-        await self.register()
+        callback = self.service_handler_manager.remove_callback(service)
+
+        if callback is not None:
+            await self.register()
+        else:
+            logger.warning(f"Attempted to remove non-existing service={service!r}")
 
     async def service_has_providers(self, service: Service) -> bool:
         """Check if there are any nodes that provide the service."""
@@ -214,7 +218,7 @@ class Node:
         Does nothing forever. Convenience method to prevent your main function
         from exiting while the node is running.
         """
-        await forever()
+        await forever()  # pragma: no cover
 
 
 class TopicProxy(NamedTuple):

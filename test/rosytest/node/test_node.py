@@ -1,4 +1,4 @@
-from unittest.mock import AsyncMock, create_autospec
+from unittest.mock import AsyncMock, call, create_autospec
 
 import pytest
 
@@ -10,7 +10,8 @@ from rosy.node.servers import ServersManager
 from rosy.node.service.caller import ServiceCaller
 from rosy.node.topic.sender import TopicSender
 from rosy.node.topology import MeshTopologyManager
-from rosy.specs import MeshNodeSpec, NodeId
+from rosy.reqres import MeshTopologyBroadcast
+from rosy.specs import IpConnectionSpec, MeshNodeSpec, MeshTopologySpec, NodeId
 
 
 class TestNode:
@@ -117,7 +118,10 @@ class TestNode:
             [create_autospec(MeshNodeSpec)],  # Second call, listener found
         ]
 
-        assert await self.node.wait_for_listener('topic', poll_interval=0.) is None
+        assert await self.node.wait_for_listener(
+            'topic',
+            poll_interval=0.,
+        ) is None
 
         assert self.topology_manager.get_nodes_listening_to_topic.call_count == 2
 
@@ -127,6 +131,129 @@ class TestNode:
         assert isinstance(topic, TopicProxy)
         assert topic.node is self.node
         assert topic.topic == 'topic'
+
+    @pytest.mark.asyncio
+    async def test_call(self):
+        await self.node.call('service', 'arg', key='value')
+
+        self.service_caller.call.assert_awaited_once_with(
+            'service',
+            ('arg',),
+            {'key': 'value'},
+        )
+
+    @pytest.mark.asyncio
+    async def test_add_service(self):
+        callback = AsyncMock()
+
+        assert await self.node.add_service('service', callback) is None
+
+        self.service_handler_manager.set_callback.assert_called_once_with('service', callback)
+        self.coordinator_client.register_node.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_remove_service_registers_when_valid_service(self):
+        callback = AsyncMock()
+        self.service_handler_manager.remove_callback.return_value = callback
+
+        assert await self.node.remove_service('service') is None
+
+        self.service_handler_manager.remove_callback.assert_called_once_with('service')
+        self.coordinator_client.register_node.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_remove_service_does_not_register_when_invalid_service(self):
+        self.service_handler_manager.remove_callback.return_value = None
+
+        assert await self.node.remove_service('service') is None
+
+        self.service_handler_manager.remove_callback.assert_called_once_with('service')
+        self.coordinator_client.register_node.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_service_has_providers_returns_True(self):
+        self.topology_manager.get_nodes_providing_service.return_value = [
+            create_autospec(MeshNodeSpec),
+        ]
+
+        assert await self.node.service_has_providers('service') is True
+
+    @pytest.mark.asyncio
+    async def test_service_has_providers_returns_False(self):
+        self.topology_manager.get_nodes_providing_service.return_value = []
+
+        assert await self.node.service_has_providers('service') is False
+
+    @pytest.mark.asyncio
+    async def test_wait_for_service_provider(self):
+        self.topology_manager.get_nodes_providing_service.side_effect = [
+            [],  # First call, no providers
+            [create_autospec(MeshNodeSpec)],  # Second call, provider found
+        ]
+
+        assert await self.node.wait_for_service_provider(
+            'service',
+            poll_interval=0.,
+        ) is None
+
+        assert self.topology_manager.get_nodes_providing_service.call_count == 2
+
+    def test_get_service(self):
+        service = self.node.get_service('service')
+
+        assert isinstance(service, ServiceProxy)
+        assert service.node is self.node
+        assert service.service == 'service'
+
+    @pytest.mark.asyncio
+    async def test_register(self):
+        connection_specs = [IpConnectionSpec('host', 1234)]
+        self.servers_manager.connection_specs = connection_specs
+
+        topics = {'topic1', 'topic2'}
+        self.topic_listener_manager.keys = topics
+
+        services = {'service1', 'service2'}
+        self.service_handler_manager.keys = services
+
+        assert await self.node.register() is None
+
+        expected_spec = MeshNodeSpec(
+            id=self.node.id,
+            connection_specs=connection_specs,
+            topics=topics,
+            services=services,
+        )
+
+        self.coordinator_client.register_node.assert_awaited_once_with(expected_spec)
+
+    @pytest.mark.asyncio
+    async def test_handle_topology_broadcast(self):
+        def mock_node(name: str):
+            node = create_autospec(MeshNodeSpec)
+            node.id = NodeId(name)
+            return node
+
+        broadcast = MeshTopologyBroadcast(
+            mesh_topology=create_autospec(MeshTopologySpec),
+        )
+        broadcast.mesh_topology.nodes = [
+            mock_node('new_node'),
+        ]
+
+        removed_nodes = [
+            mock_node('removed_node1'),
+            mock_node('removed_node2'),
+        ]
+        self.topology_manager.get_removed_nodes.return_value = removed_nodes
+
+        assert await self.node._handle_topology_broadcast(broadcast) is None
+
+        self.topology_manager.set_topology.assert_called_once_with(broadcast.mesh_topology)
+        assert self.connection_manager.close_connection.call_args_list == [
+            call(removed_nodes[0]),
+            call(removed_nodes[1]),
+        ]
 
 
 class TestTopicProxy:
