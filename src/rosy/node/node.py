@@ -158,7 +158,7 @@ class Node:
         providers = self.topology_manager.get_nodes_providing_service(service)
         return bool(providers)
 
-    async def wait_for_service(self, service: Service, poll_interval: float = 1.) -> None:
+    async def wait_for_service_provider(self, service: Service, poll_interval: float = 1.) -> None:
         """Wait until there is a provider for a service."""
         while not await self.service_has_providers(service):
             await asyncio.sleep(poll_interval)
@@ -221,6 +221,10 @@ class TopicProxy(NamedTuple):
     node: Node
     topic: Topic
 
+    def __str__(self):
+        name = self.__class__.__name__
+        return f'{name}(topic={self.topic!r})'
+
     async def send(self, *args: Data, **kwargs: Data) -> None:
         await self.node.send(self.topic, *args, **kwargs)
 
@@ -240,7 +244,7 @@ class ServiceProxy(NamedTuple):
 
     def __str__(self) -> str:
         name = self.__class__.__name__
-        return f'{name}(service={self.service})'
+        return f'{name}(service={self.service!r})'
 
     async def __call__(self, *args: Data, **kwargs: Data) -> Data:
         return await self.call(*args, **kwargs)
@@ -252,4 +256,4 @@ class ServiceProxy(NamedTuple):
         return await self.node.service_has_providers(self.service)
 
     async def wait_for_provider(self, poll_interval: float = 1.) -> None:
-        await self.node.wait_for_service(self.service, poll_interval)
+        await self.node.wait_for_service_provider(self.service, poll_interval)
