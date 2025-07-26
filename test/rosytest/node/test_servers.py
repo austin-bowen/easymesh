@@ -107,10 +107,25 @@ class TestTmpUnixServerProvider:
 
 class TestServersManager:
     def setup_method(self):
+        servers = [
+            create_autospec(Server),
+            create_autospec(Server),
+        ]
+
+        self.conn_specs = [
+            create_autospec(IpConnectionSpec),
+            create_autospec(UnixConnectionSpec),
+        ]
+
         self.server_providers = [
             create_autospec(ServerProvider),
             create_autospec(ServerProvider),
         ]
+
+        for provider, server, conn_spec in zip(
+                self.server_providers, servers, self.conn_specs
+        ):
+            provider.start_server.return_value = (server, conn_spec)
 
         self.client_connected_cb = create_autospec(Callable)
 
@@ -119,6 +134,35 @@ class TestServersManager:
             self.client_connected_cb,
         )
 
+    def test_connection_specs_initially_empty(self):
+        assert self.manager.connection_specs == []
+
+    @patch('rosy.node.servers._close_on_return')
     @pytest.mark.asyncio
-    async def test_start_servers(self):
-        ...
+    async def test_start_servers(self, close_on_return_mock):
+        wrapper_cb = create_autospec(Callable)
+        close_on_return_mock.return_value = wrapper_cb
+
+        await self.manager.start_servers()
+
+        assert self.manager.connection_specs == self.conn_specs
+
+        close_on_return_mock.assert_called_once_with(self.client_connected_cb)
+
+        for provider in self.server_providers:
+            provider.start_server.assert_awaited_once_with(wrapper_cb)
+
+    @pytest.mark.asyncio
+    async def test_start_servers_raises_RuntimeError_when_already_started(self):
+        await self.manager.start_servers()
+
+        with pytest.raises(RuntimeError, match='Servers have already been started.'):
+            await self.manager.start_servers()
+
+    @pytest.mark.asyncio
+    async def test_start_servers_raises_RuntimeError_when_no_servers_started(self):
+        for provider in self.server_providers:
+            provider.start_server.side_effect = UnsupportedProviderError(provider, 'Unsupported')
+
+        with pytest.raises(RuntimeError, match='Unable to start any server with the given server providers.'):
+            await self.manager.start_servers()
