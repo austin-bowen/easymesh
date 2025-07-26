@@ -16,8 +16,8 @@ coordinator:
   # if you will have nodes running on different machines.
   # Default: localhost
   client_host: localhost
-  # Port for server to bind to. Default: 6374
-  port: 6374
+  # Port for server to bind to. Default: 7679
+  port: 7679
   # Authentication key. Default: None
   authkey: authkey
   # Log heartbeats from clients. Default: False

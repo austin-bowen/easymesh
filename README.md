@@ -91,7 +91,7 @@ Use the `--help` arg on any command to see all options.
 
 ### `$ rosy`
 
-Start the coordinator node. By default, it will listen on port `6374` on all interfaces.
+Start the coordinator node. By default, it will listen on port `7679` on all interfaces.
 
 ### `$ rosylaunch [config]`
 
