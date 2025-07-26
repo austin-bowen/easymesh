@@ -1,14 +1,17 @@
 from asyncio import Server
 from collections.abc import Callable
-from unittest.mock import ANY, call, create_autospec, patch
+from unittest.mock import ANY, AsyncMock, call, create_autospec, patch
 
 import pytest
 
+from rosy.asyncio import Reader, Writer
 from rosy.node.servers import (
     PortScanTcpServerProvider,
     ServerProvider,
     ServersManager,
-    TmpUnixServerProvider, UnsupportedProviderError,
+    TmpUnixServerProvider,
+    UnsupportedProviderError,
+    _close_on_return,
 )
 from rosy.specs import IpConnectionSpec, UnixConnectionSpec
 
@@ -160,9 +163,51 @@ class TestServersManager:
             await self.manager.start_servers()
 
     @pytest.mark.asyncio
-    async def test_start_servers_raises_RuntimeError_when_no_servers_started(self):
+    async def test_start_servers_raises_RuntimeError_when_no_servers_started(self, logger_mock):
         for provider in self.server_providers:
             provider.start_server.side_effect = UnsupportedProviderError(provider, 'Unsupported')
 
         with pytest.raises(RuntimeError, match='Unable to start any server with the given server providers.'):
             await self.manager.start_servers()
+
+        assert logger_mock.exception.call_count == len(self.server_providers)
+
+
+class TestCloseOnReturn:
+    def setup_method(self):
+        self.reader = create_autospec(Reader)
+        self.writer = create_autospec(Writer)
+        self.callback = AsyncMock()
+        self.callback_wrapper = _close_on_return(self.callback)
+
+    @pytest.mark.asyncio
+    async def test_when_success(self):
+        assert await self.callback_wrapper(self.reader, self.writer) is None
+
+        self.callback.assert_awaited_once_with(self.reader, self.writer)
+
+        self.writer.close.assert_called_once()
+        self.writer.wait_closed.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_when_error(self, logger_mock):
+        error = Exception()
+        self.callback.side_effect = error
+
+        assert await self.callback_wrapper(self.reader, self.writer) is None
+
+        self.callback.assert_awaited_once_with(self.reader, self.writer)
+
+        logger_mock.exception.assert_called_once_with(
+            'Error in client connected callback',
+            exc_info=error,
+        )
+
+        self.writer.close.assert_called_once()
+        self.writer.wait_closed.assert_awaited_once()
+
+
+@pytest.fixture
+def logger_mock():
+    with patch('rosy.node.servers.logger') as mock:
+        yield mock
