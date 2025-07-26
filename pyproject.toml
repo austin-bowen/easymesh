@@ -1,6 +1,6 @@
 [project]
 name = "rosy"
-version = "0.3.1"
+version = "0.4.0"
 description = "Simple, fast inter-process message passing for distributed Python processes"
 authors = [
     {name = "Austin Bowen", email = "austin.bowen.314@gmail.com"}
