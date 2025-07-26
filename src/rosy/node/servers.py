@@ -21,7 +21,7 @@ class ServerProvider(ABC):
             client_connected_cb,
     ) -> tuple[Server, ConnectionSpec]:
         """Raises ``UnsupportedProviderError`` if not supported on the system."""
-        ...
+        ...  # pragma: no cover
 
 
 class PortScanTcpServerProvider(ServerProvider):
