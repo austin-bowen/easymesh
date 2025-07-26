@@ -1,6 +1,6 @@
 from asyncio import Server
 from collections.abc import Callable
-from unittest.mock import call, create_autospec, patch
+from unittest.mock import ANY, call, create_autospec, patch
 
 import pytest
 
@@ -8,9 +8,9 @@ from rosy.node.servers import (
     PortScanTcpServerProvider,
     ServerProvider,
     ServersManager,
-    TmpUnixServerProvider,
+    TmpUnixServerProvider, UnsupportedProviderError,
 )
-from rosy.specs import IpConnectionSpec
+from rosy.specs import IpConnectionSpec, UnixConnectionSpec
 
 
 class TestPortScanTcpServerProvider:
@@ -75,9 +75,34 @@ class TestTmpUnixServerProvider:
     def setup_method(self):
         self.provider = TmpUnixServerProvider()
 
+    @patch('rosy.node.servers.asyncio.start_unix_server')
     @pytest.mark.asyncio
-    async def test_start_server(self):
-        ...
+    async def test_start_server(self, start_unix_server_mock):
+        expected_server = create_autospec(Server)
+        start_unix_server_mock.return_value = expected_server
+
+        client_connected_cb = create_autospec(Callable)
+
+        server, conn_spec = await self.provider.start_server(client_connected_cb)
+
+        start_unix_server_mock.assert_called_once_with(
+            client_connected_cb,
+            path=ANY,
+        )
+        sock_path = start_unix_server_mock.call_args[1]['path']
+
+        assert server is expected_server
+        assert conn_spec == UnixConnectionSpec(sock_path)
+
+    @patch('rosy.node.servers.asyncio.start_unix_server')
+    @pytest.mark.asyncio
+    async def test_start_server_raises_UnsupportedProviderError(self, start_unix_server_mock):
+        start_unix_server_mock.side_effect = NotImplementedError()
+
+        client_connected_cb = create_autospec(Callable)
+
+        with pytest.raises(UnsupportedProviderError):
+            await self.provider.start_server(client_connected_cb)
 
 
 class TestServersManager:
